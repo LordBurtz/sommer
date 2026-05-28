@@ -1,0 +1,15 @@
+# Force all text files to LF across the whole team
+* text=auto eol=lf
+
+# Shell scripts must always be LF (they fail otherwise on Linux)
+*.sh text eol=lf
+
+# Windows batch files keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files — never convert
+*.png binary
+*.jpg binary
+*.gif binary
+*.exe binary
