@@ -4,4 +4,6 @@
 
     TODO: accuracy of common_tools testen mit existing dataset vs simple machine learning model
 
-    
+
+Open questions to Victor:
+- there is 1 datapoint with precursor charge 6, 11 with charge 1, can we ignore them?
