@@ -1,0 +1,7 @@
+2026-06-12 FK:
+    incomplete data angeschaut, uns fehlen ca 5k precursor charges, ansonsten ist alles complete
+    in common_tools.py eine funktion geschrieben, die die precursor charge errechnet, noch nicht verfiziert
+
+    TODO: accuracy of common_tools testen mit existing dataset vs simple machine learning model
+
+    

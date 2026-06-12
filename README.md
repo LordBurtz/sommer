@@ -9,6 +9,11 @@ create the virtual environemnt
 $ uv venv
 ```
 
+sync dependencies
+```python
+$ uv sync
+```
+
 activate the virtual environment
 ```python
 $ source .venv/bin/activate
