@@ -7,3 +7,9 @@
 
 Open questions to Victor:
 - there is 1 datapoint with precursor charge 6, 11 with charge 1, can we ignore them?
+
+Key findings: 
+    peptide length 7–30, 
+    single-charge b/y ions only, 
+    min intensity ~16 (no zeros → unmatched = 0)
+    duplicate keys with conflicting charges (must drop)
