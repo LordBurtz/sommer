@@ -1,0 +1,317 @@
+[
+  {
+    "2026-09-25 00:21:00 +0200": {
+      "notebook": "02_precursor_charge.ipynb",
+      "started_at": "2026-09-25T00:21:00.106057+02:00",
+      "random_state": 1312,
+      "classes": [
+        2,
+        3,
+        4
+      ],
+      "data": {
+        "train_rows": 279832,
+        "val_rows": 34979,
+        "unknown_rows": 3728,
+        "eval_subsample": 60000,
+        "cv": "StratifiedGroupKFold(n_splits=3, groups=stripped_sequence)"
+      },
+      "configurations": [
+        {
+          "name": "baseline",
+          "logged_at": "2026-09-25T00:21:08.888110+02:00",
+          "model": "CatBoostClassifier",
+          "hyperparameters": {
+            "iterations": 500,
+            "learning_rate": 0.05,
+            "depth": 8,
+            "loss_function": "MultiClass",
+            "verbose": 0,
+            "auto_class_weights": "Balanced",
+            "class_names": [
+              2,
+              3,
+              4
+            ],
+            "random_state": 1312
+          },
+          "n_features": 12,
+          "features": [
+            "length",
+            "n_KRH",
+            "n_DE",
+            "n_b",
+            "n_y",
+            "max_b",
+            "max_y",
+            "int_mean",
+            "int_std",
+            "int_max",
+            "int_median",
+            "int_sum"
+          ],
+          "metrics": {
+            "cv_macro_f1_mean": 0.9526351662610053,
+            "cv_macro_f1_std": 0.0005826874181452131,
+            "cv_accuracy_mean": 0.9868833333333334,
+            "cv_accuracy_std": 0.000473168985552613,
+            "cv_macro_f1_folds": [
+              0.9530972056900532,
+              0.9529950582280389,
+              0.9518132348649241
+            ],
+            "cv_accuracy_folds": [
+              0.98755,
+              0.9866,
+              0.9865
+            ]
+          },
+          "feature_set": "baseline",
+          "n_eval_rows": 60000
+        },
+        {
+          "name": "improved",
+          "logged_at": "2026-09-25T00:21:29.650440+02:00",
+          "model": "CatBoostClassifier",
+          "hyperparameters": {
+            "iterations": 900,
+            "learning_rate": 0.03,
+            "depth": 8,
+            "l2_leaf_reg": 6.0,
+            "loss_function": "MultiClass",
+            "verbose": 0,
+            "auto_class_weights": "Balanced",
+            "class_names": [
+              2,
+              3,
+              4
+            ],
+            "random_state": 1312
+          },
+          "n_features": 29,
+          "features": [
+            "length",
+            "n_KRH",
+            "n_DE",
+            "n_b",
+            "n_y",
+            "max_b",
+            "max_y",
+            "int_mean",
+            "int_std",
+            "int_max",
+            "int_median",
+            "int_sum",
+            "pep_mass",
+            "mass_per_len",
+            "basic_density",
+            "acid_density",
+            "n_K",
+            "n_R",
+            "n_H",
+            "n_P",
+            "nterm_basic",
+            "cterm_basic",
+            "frag_coverage",
+            "max_frag_rel",
+            "by_ratio",
+            "weighted_basicity",
+            "weighted_basic_density",
+            "isoelectric_point",
+            "gravy_index"
+          ],
+          "metrics": {
+            "cv_macro_f1_mean": 0.9583002573310718,
+            "cv_macro_f1_std": 0.001709393169270492,
+            "cv_accuracy_mean": 0.9884333333333334,
+            "cv_accuracy_std": 0.00010274023338285298,
+            "cv_macro_f1_folds": [
+              0.9558957409744838,
+              0.9597187638131705,
+              0.9592862672055613
+            ],
+            "cv_accuracy_folds": [
+              0.98845,
+              0.98855,
+              0.9883
+            ]
+          },
+          "feature_set": "improved",
+          "n_eval_rows": 60000
+        },
+        {
+          "name": "improved_val_holdout",
+          "logged_at": "2026-09-25T00:22:07.261058+02:00",
+          "model": "CatBoostClassifier",
+          "hyperparameters": {
+            "iterations": 900,
+            "learning_rate": 0.03,
+            "depth": 8,
+            "l2_leaf_reg": 6.0,
+            "loss_function": "MultiClass",
+            "verbose": 0,
+            "auto_class_weights": "Balanced",
+            "class_names": [
+              2,
+              3,
+              4
+            ],
+            "random_state": 1312
+          },
+          "n_features": 29,
+          "features": [
+            "length",
+            "n_KRH",
+            "n_DE",
+            "n_b",
+            "n_y",
+            "max_b",
+            "max_y",
+            "int_mean",
+            "int_std",
+            "int_max",
+            "int_median",
+            "int_sum",
+            "pep_mass",
+            "mass_per_len",
+            "basic_density",
+            "acid_density",
+            "n_K",
+            "n_R",
+            "n_H",
+            "n_P",
+            "nterm_basic",
+            "cterm_basic",
+            "frag_coverage",
+            "max_frag_rel",
+            "by_ratio",
+            "weighted_basicity",
+            "weighted_basic_density",
+            "isoelectric_point",
+            "gravy_index"
+          ],
+          "metrics": {
+            "val_macro_f1": 0.9593416116071439,
+            "val_accuracy": 0.989765287744075,
+            "per_class": {
+              "2": {
+                "precision": 0.9980336158059834,
+                "recall": 0.9969600598634365,
+                "f1-score": 0.997496548981072,
+                "support": 21382.0
+              },
+              "3": {
+                "precision": 0.9932597044014942,
+                "recall": 0.9780887644942023,
+                "f1-score": 0.9856158588178412,
+                "support": 12505.0
+              },
+              "4": {
+                "precision": 0.821592649310873,
+                "recall": 0.9826007326007326,
+                "f1-score": 0.8949124270225187,
+                "support": 1092.0
+              },
+              "accuracy": 0.989765287744075,
+              "macro avg": {
+                "precision": 0.9376286565061168,
+                "recall": 0.9858831856527904,
+                "f1-score": 0.9593416116071439,
+                "support": 34979.0
+              },
+              "weighted avg": {
+                "precision": 0.9908186783427684,
+                "recall": 0.989765287744075,
+                "f1-score": 0.9900466535675398,
+                "support": 34979.0
+              }
+            }
+          },
+          "feature_set": "improved",
+          "fitted_on": "train split",
+          "evaluated_on": "val split",
+          "n_train_rows": 279832,
+          "n_val_rows": 34979
+        }
+      ],
+      "artifacts": {
+        "final_model": {
+          "path": "precursor_charge_catboost.cbm",
+          "format": "catboost cbm",
+          "saved_at": "2026-09-25T00:22:47.852793+02:00",
+          "load_with": "CatBoostClassifier().load_model('precursor_charge_catboost.cbm')",
+          "feature_set": "improved",
+          "feature_names": [
+            "length",
+            "n_KRH",
+            "n_DE",
+            "n_b",
+            "n_y",
+            "max_b",
+            "max_y",
+            "int_mean",
+            "int_std",
+            "int_max",
+            "int_median",
+            "int_sum",
+            "pep_mass",
+            "mass_per_len",
+            "basic_density",
+            "acid_density",
+            "n_K",
+            "n_R",
+            "n_H",
+            "n_P",
+            "nterm_basic",
+            "cterm_basic",
+            "frag_coverage",
+            "max_frag_rel",
+            "by_ratio",
+            "weighted_basicity",
+            "weighted_basic_density",
+            "isoelectric_point",
+            "gravy_index"
+          ],
+          "class_names": [
+            2,
+            3,
+            4
+          ],
+          "hyperparameters": {
+            "iterations": 900,
+            "learning_rate": 0.03,
+            "depth": 8,
+            "l2_leaf_reg": 6.0,
+            "loss_function": "MultiClass",
+            "verbose": 0,
+            "auto_class_weights": "Balanced",
+            "class_names": [
+              2,
+              3,
+              4
+            ],
+            "random_state": 1312
+          },
+          "tree_count": 900,
+          "fitted_on": "train + val splits (annotated spectra)",
+          "n_fit_rows": 314811,
+          "imputed_distribution": {
+            "2": 2415,
+            "3": 764,
+            "4": 549
+          }
+        },
+        "spectra_with_charge": {
+          "path": "spectra_with_charge.parquet",
+          "saved_at": "2026-09-25T00:22:48.319381+02:00",
+          "rows": 318539,
+          "charge_source": {
+            "annotated": 314811,
+            "predicted": 3728
+          }
+        }
+      },
+      "finished_at": "2026-09-25T00:22:48.320831+02:00"
+    }
+  }
+]
