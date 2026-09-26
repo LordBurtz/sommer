@@ -1,0 +1,18 @@
+{
+  "params": {
+    "depth": 6,
+    "learning_rate": 0.12256160965293714,
+    "l2_leaf_reg": 3.5239226470739338,
+    "random_strength": 9.470032423620601,
+    "bagging_temperature": 0.9326120389296408,
+    "border_count": 128,
+    "auto_class_weights": null
+  },
+  "iterations": 1129,
+  "cv_macro_f1": 0.9733005764624417,
+  "trials": {
+    "PRUNED": 36,
+    "COMPLETE": 18,
+    "FAIL": 1
+  }
+}
