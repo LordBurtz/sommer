@@ -1,0 +1,991 @@
+[
+  {
+    "started_at": "2026-10-01T00:17:46.297836+02:00",
+    "source_fingerprint": "e03774cdba82f0a15e7407e6d558533eb59805c87decd2bdd61b43f8cc69d32d",
+    "source_files": [
+      "train.parquet",
+      "spectra_with_charge.parquet"
+    ],
+    "seed": 1312,
+    "device": "cpu",
+    "metric": "mean masked spectral angle",
+    "protocol": {
+      "search": "grouped training-only holdout (20%)",
+      "validation": "unchanged held-out val split",
+      "search_rows": 4000,
+      "train_rows": 8000,
+      "val_rows": 2000,
+      "epochs": 5,
+      "batch_size": 128
+    },
+    "configurations": [
+      {
+        "name": "preparation",
+        "fingerprint": "e03774cdba82f0a15e7407e6d558533eb59805c87decd2bdd61b43f8cc69d32d"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 0,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "metrics": {
+          "spectral_angle": 0.47359147667884827,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 1,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1283722822435478
+          },
+          "lr": 0.0015564066828333402,
+          "weight_decay": 4.4407670473075887e-05
+        },
+        "metrics": {
+          "spectral_angle": 0.4696063995361328,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 2,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.2073176783619777
+          },
+          "lr": 0.00041306694340489,
+          "weight_decay": 1.1037712104248325e-05
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 3,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 32,
+            "dropout": 0.17412972830012738
+          },
+          "lr": 0.0007040496084724127,
+          "weight_decay": 0.00011766613177792132
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "selection",
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "metrics": {
+          "search_sa": 0.47359147667884827
+        }
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 0,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191,
+            "layers": 4
+          },
+          "lr": 0.0013140562631925182,
+          "weight_decay": 1.8651294035364643e-06
+        },
+        "metrics": {
+          "spectral_angle": 0.5633410811424255,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 1,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.27356335638625967,
+            "layers": 3
+          },
+          "lr": 0.0005205369159415856,
+          "weight_decay": 0.00020320013353141325
+        },
+        "metrics": {
+          "spectral_angle": 0.5894115567207336,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 2,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 64,
+            "dropout": 0.1695252708139428,
+            "layers": 4
+          },
+          "lr": 0.0005537676376354772,
+          "weight_decay": 0.00010389453661247777
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 3,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "metrics": {
+          "spectral_angle": 0.614033043384552,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "selection",
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "metrics": {
+          "search_sa": 0.614033043384552
+        }
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "validation",
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753,
+          "epochs": 5,
+          "batch_size": 128,
+          "optimizer": "AdamW",
+          "loss": "masked spectral-angle distance"
+        },
+        "metrics": {
+          "val_sa": 0.5013146996498108
+        },
+        "train_rows": 8000,
+        "val_rows": 2000
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "validation",
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372,
+          "epochs": 5,
+          "batch_size": 128,
+          "optimizer": "AdamW",
+          "loss": "masked spectral-angle distance"
+        },
+        "metrics": {
+          "val_sa": 0.6680610179901123
+        },
+        "train_rows": 8000,
+        "val_rows": 2000
+      }
+    ],
+    "best_params": {
+      "3: sequence network": {
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "search_sa": 0.47359147667884827,
+        "best_epoch": 5
+      },
+      "4: graph neural network": {
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "search_sa": 0.614033043384552,
+        "best_epoch": 5
+      }
+    },
+    "comparison": {}
+  },
+  {
+    "started_at": "2026-10-01T00:18:26.087076+02:00",
+    "source_fingerprint": "e03774cdba82f0a15e7407e6d558533eb59805c87decd2bdd61b43f8cc69d32d",
+    "source_files": [
+      "train.parquet",
+      "spectra_with_charge.parquet"
+    ],
+    "seed": 1312,
+    "device": "cpu",
+    "metric": "mean masked spectral angle",
+    "protocol": {
+      "search": "grouped training-only holdout (20%)",
+      "validation": "unchanged held-out val split",
+      "search_rows": 4000,
+      "train_rows": 8000,
+      "val_rows": 2000,
+      "epochs": 5,
+      "batch_size": 128
+    },
+    "configurations": [
+      {
+        "name": "preparation",
+        "fingerprint": "e03774cdba82f0a15e7407e6d558533eb59805c87decd2bdd61b43f8cc69d32d"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 0,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "metrics": {
+          "spectral_angle": 0.47359147667884827,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 1,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1283722822435478
+          },
+          "lr": 0.0015564066828333402,
+          "weight_decay": 4.4407670473075887e-05
+        },
+        "metrics": {
+          "spectral_angle": 0.4696063995361328,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 2,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.2073176783619777
+          },
+          "lr": 0.00041306694340489,
+          "weight_decay": 1.1037712104248325e-05
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 3,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 32,
+            "dropout": 0.17412972830012738
+          },
+          "lr": 0.0007040496084724127,
+          "weight_decay": 0.00011766613177792132
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "selection",
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "metrics": {
+          "search_sa": 0.47359147667884827
+        }
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 0,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191,
+            "layers": 4
+          },
+          "lr": 0.0013140562631925182,
+          "weight_decay": 1.8651294035364643e-06
+        },
+        "metrics": {
+          "spectral_angle": 0.5633410811424255,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 1,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.27356335638625967,
+            "layers": 3
+          },
+          "lr": 0.0005205369159415856,
+          "weight_decay": 0.00020320013353141325
+        },
+        "metrics": {
+          "spectral_angle": 0.5894115567207336,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 2,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 64,
+            "dropout": 0.1695252708139428,
+            "layers": 4
+          },
+          "lr": 0.0005537676376354772,
+          "weight_decay": 0.00010389453661247777
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 3,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "metrics": {
+          "spectral_angle": 0.614033043384552,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "selection",
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "metrics": {
+          "search_sa": 0.614033043384552
+        }
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "validation",
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753,
+          "epochs": 5,
+          "batch_size": 128,
+          "optimizer": "AdamW",
+          "loss": "masked spectral-angle distance"
+        },
+        "metrics": {
+          "val_sa": 0.5013146996498108
+        },
+        "train_rows": 8000,
+        "val_rows": 2000
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "validation",
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372,
+          "epochs": 5,
+          "batch_size": 128,
+          "optimizer": "AdamW",
+          "loss": "masked spectral-angle distance"
+        },
+        "metrics": {
+          "val_sa": 0.6680610179901123
+        },
+        "train_rows": 8000,
+        "val_rows": 2000
+      },
+      {
+        "name": "1: lookup",
+        "stage": "validation",
+        "model_class": "cleavage-context mean",
+        "hyperparameters": {
+          "key": "charge, ion, left residue, right residue",
+          "fallback": "slot mean"
+        },
+        "metrics": {
+          "val_sa": 0.4614696204662323
+        }
+      },
+      {
+        "name": "2: LightGBM",
+        "stage": "validation",
+        "model_class": "LGBMRegressor x 58",
+        "hyperparameters": {
+          "n_estimators": 35,
+          "num_leaves": 15,
+          "learning_rate": 0.08,
+          "verbosity": -1,
+          "n_jobs": 1,
+          "random_state": 1312,
+          "features": "30 residue-token IDs + precursor charge"
+        },
+        "metrics": {
+          "val_sa": 0.5487359589929351
+        }
+      },
+      {
+        "name": "comparison",
+        "stage": "summary",
+        "metrics": {
+          "validation_sa": {
+            "1: lookup": 0.4614696204662323,
+            "2: LightGBM": 0.5487359589929351,
+            "3: sequence network": 0.5013146996498108,
+            "4: graph neural network": 0.6680610179901123
+          },
+          "graph_minus_lookup": 0.20659139752388,
+          "graph_minus_lightgbm": 0.11932505899717716,
+          "graph_minus_sequence": 0.1667463183403015
+        }
+      }
+    ],
+    "best_params": {
+      "3: sequence network": {
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "search_sa": 0.47359147667884827,
+        "best_epoch": 5
+      },
+      "4: graph neural network": {
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "search_sa": 0.614033043384552,
+        "best_epoch": 5
+      }
+    },
+    "comparison": {
+      "validation_sa": {
+        "1: lookup": 0.4614696204662323,
+        "2: LightGBM": 0.5487359589929351,
+        "3: sequence network": 0.5013146996498108,
+        "4: graph neural network": 0.6680610179901123
+      },
+      "graph_minus_lookup": 0.20659139752388,
+      "graph_minus_lightgbm": 0.11932505899717716,
+      "graph_minus_sequence": 0.1667463183403015
+    }
+  },
+  {
+    "started_at": "2026-10-01T00:20:14.207678+02:00",
+    "source_fingerprint": "e03774cdba82f0a15e7407e6d558533eb59805c87decd2bdd61b43f8cc69d32d",
+    "source_files": [
+      "train.parquet",
+      "spectra_with_charge.parquet"
+    ],
+    "code_sha256": {
+      "deep_learning_model.py": "4db0c25825a1b9f1f69bafa15702f59970b5852138dd3485f257f76be109ce33",
+      "refac_common.py": "4f44c1f93c75146663bafccf84bf5cf0e948f57fd336f8507e4b029e837e1d03"
+    },
+    "versions": {
+      "python": "3.14.7",
+      "torch": "2.12.0",
+      "optuna": "5.0.0"
+    },
+    "seed": 1312,
+    "device": "cpu",
+    "metric": "mean masked spectral angle",
+    "protocol": {
+      "search": "grouped training-only holdout (20%)",
+      "validation": "unchanged held-out val split",
+      "search_rows": 4000,
+      "train_rows": 8000,
+      "val_rows": 2000,
+      "epochs": 5,
+      "batch_size": 128,
+      "sampling": "seeded uniform without replacement",
+      "excluded_shared_sequence_train_rows": 0
+    },
+    "configurations": [
+      {
+        "name": "preparation",
+        "fingerprint": "e03774cdba82f0a15e7407e6d558533eb59805c87decd2bdd61b43f8cc69d32d"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 0,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "metrics": {
+          "spectral_angle": 0.47359147667884827,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 1,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1283722822435478
+          },
+          "lr": 0.0015564066828333402,
+          "weight_decay": 4.4407670473075887e-05
+        },
+        "metrics": {
+          "spectral_angle": 0.4696063995361328,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 2,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.2073176783619777
+          },
+          "lr": 0.00041306694340489,
+          "weight_decay": 1.1037712104248325e-05
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "search",
+        "trial": 3,
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 32,
+            "dropout": 0.17412972830012738
+          },
+          "lr": 0.0007040496084724127,
+          "weight_decay": 0.00011766613177792132
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "selection",
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "metrics": {
+          "search_sa": 0.47359147667884827
+        }
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 0,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191,
+            "layers": 4
+          },
+          "lr": 0.0013140562631925182,
+          "weight_decay": 1.8651294035364643e-06
+        },
+        "metrics": {
+          "spectral_angle": 0.5633410811424255,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 1,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.27356335638625967,
+            "layers": 3
+          },
+          "lr": 0.0005205369159415856,
+          "weight_decay": 0.00020320013353141325
+        },
+        "metrics": {
+          "spectral_angle": 0.5894115567207336,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 2,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 64,
+            "dropout": 0.1695252708139428,
+            "layers": 4
+          },
+          "lr": 0.0005537676376354772,
+          "weight_decay": 0.00010389453661247777
+        },
+        "status": "pruned"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "search",
+        "trial": 3,
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "metrics": {
+          "spectral_angle": 0.614033043384552,
+          "best_epoch": 5
+        },
+        "status": "complete"
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "selection",
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "metrics": {
+          "search_sa": 0.614033043384552
+        }
+      },
+      {
+        "name": "3: sequence network",
+        "stage": "validation",
+        "model_class": "SequenceNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753,
+          "epochs": 5,
+          "batch_size": 128,
+          "optimizer": "AdamW",
+          "loss": "masked spectral-angle distance"
+        },
+        "metrics": {
+          "val_sa": 0.5013146996498108
+        },
+        "train_rows": 8000,
+        "val_rows": 2000
+      },
+      {
+        "name": "4: graph neural network",
+        "stage": "validation",
+        "model_class": "FragmentGraphNetwork",
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372,
+          "epochs": 5,
+          "batch_size": 128,
+          "optimizer": "AdamW",
+          "loss": "masked spectral-angle distance"
+        },
+        "metrics": {
+          "val_sa": 0.6680610179901123
+        },
+        "train_rows": 8000,
+        "val_rows": 2000
+      },
+      {
+        "name": "1: lookup",
+        "stage": "validation",
+        "model_class": "cleavage-context mean",
+        "hyperparameters": {
+          "key": "charge, ion, left residue, right residue",
+          "fallback": "slot mean"
+        },
+        "metrics": {
+          "val_sa": 0.4614696204662323
+        }
+      },
+      {
+        "name": "2: LightGBM",
+        "stage": "validation",
+        "model_class": "LGBMRegressor x 58",
+        "hyperparameters": {
+          "n_estimators": 35,
+          "num_leaves": 15,
+          "learning_rate": 0.08,
+          "verbosity": -1,
+          "n_jobs": 1,
+          "random_state": 1312,
+          "features": "30 residue-token IDs + precursor charge"
+        },
+        "metrics": {
+          "val_sa": 0.5487359589929351
+        }
+      },
+      {
+        "name": "comparison",
+        "stage": "summary",
+        "metrics": {
+          "validation_sa": {
+            "1: lookup": 0.4614696204662323,
+            "2: LightGBM": 0.5487359589929351,
+            "3: sequence network": 0.5013146996498108,
+            "4: graph neural network": 0.6680610179901123
+          },
+          "graph_minus_lookup": 0.20659139752388,
+          "graph_minus_lightgbm": 0.11932505899717716,
+          "graph_minus_sequence": 0.1667463183403015
+        }
+      }
+    ],
+    "best_params": {
+      "3: sequence network": {
+        "hyperparameters": {
+          "model": {
+            "emb": 32,
+            "hidden": 32,
+            "dropout": 0.1410174713599191
+          },
+          "lr": 0.001989299291949095,
+          "weight_decay": 0.00021666581150163753
+        },
+        "search_sa": 0.47359147667884827,
+        "best_epoch": 5
+      },
+      "4: graph neural network": {
+        "hyperparameters": {
+          "model": {
+            "emb": 24,
+            "hidden": 96,
+            "dropout": 0.2889769599609201,
+            "layers": 2
+          },
+          "lr": 0.0012570097775705437,
+          "weight_decay": 0.00011261851731214372
+        },
+        "search_sa": 0.614033043384552,
+        "best_epoch": 5
+      }
+    },
+    "comparison": {
+      "validation_sa": {
+        "1: lookup": 0.4614696204662323,
+        "2: LightGBM": 0.5487359589929351,
+        "3: sequence network": 0.5013146996498108,
+        "4: graph neural network": 0.6680610179901123
+      },
+      "graph_minus_lookup": 0.20659139752388,
+      "graph_minus_lightgbm": 0.11932505899717716,
+      "graph_minus_sequence": 0.1667463183403015
+    }
+  }
+]
