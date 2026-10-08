@@ -3,3 +3,11 @@ __pycache__/
 catboost_info/
 *.cbm
 *.db
+
+# day1-baseline
+!splits.parquet
+cache/
+checkpoints/
+*.npz
+results/*.png
+results/smoke_runs.jsonl
