@@ -1,11 +1,8 @@
-"""Train the PrositLike baseline (notebook 05 architecture, unchanged) on the fixed split.
+"""train 05 on fixed split
 
-Trains on split == "train", early-stops on split == "val". The test split is
-never loaded. Writes:
   checkpoints/<tag>.pt            best checkpoint (by val spectral angle)
   results/runs.jsonl              one JSON record appended per run
   results/<tag>_curve.png         train loss / val SA per epoch
-
 Usage:
   uv run python train_deep.py                 # full run
   uv run python train_deep.py --smoke         # ~2k spectra, 1 epoch
@@ -33,17 +30,16 @@ import common as c
 
 @dataclass
 class Config:
-    # paths (relative paths are resolved against data_dir / out_dir)
-    data_dir: str = "."
-    spectra_file: str = "spectra_with_charge.parquet"
-    split_file: str = "splits.parquet"
+    #paths (relative paths:data_dir / out_dir)
+    data_dir: str = "refac"
+    data_file: str = "clean_spectra_split.parquet"
     out_dir: str = "."
-    cache_file: str = "cache/deep_arrays_trainval.npz"
+    cache_file: str = "cache/deep_arrays_refac_trainval.npz"
     tag: str = "deep_baseline"
-    # model (notebook 05 defaults)
+    #model
     emb: int = 64
     hidden: int = 128
-    # optimisation (notebook 05 defaults, plus early stopping)
+    #optimisation (early stopping)
     lr: float = 1e-3
     weight_decay: float = 1e-5
     batch_size: int = 512
@@ -52,14 +48,9 @@ class Config:
     lr_factor: float = 0.5
     lr_patience: int = 1
     seed: int = 1312
-    # smoke test
     smoke: bool = False
     smoke_n: int = 2000
 
-
-# --------------------------------------------------------------------------- #
-# Model + loss: copied verbatim from 05_intensity_deep.ipynb
-# --------------------------------------------------------------------------- #
 
 class PrositLike(nn.Module):
     def __init__(self, vocab=c.VOCAB_SIZE, n_charge=6, emb=64, hidden=128, out=c.VECTOR_DIM):
@@ -97,10 +88,6 @@ def masked_spectral_angle_loss(pred, target, mask, eps=1e-8):
     return (2.0 * torch.arccos(cos) / np.pi).mean()
 
 
-# --------------------------------------------------------------------------- #
-# Setup helpers
-# --------------------------------------------------------------------------- #
-
 def pick_device() -> torch.device:
     if torch.cuda.is_available():
         return torch.device("cuda")
@@ -134,12 +121,8 @@ def resolve(base: str, p: str) -> Path:
     return p if p.is_absolute() else Path(base) / p
 
 
-# --------------------------------------------------------------------------- #
-# Data
-# --------------------------------------------------------------------------- #
-
 def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
-    """Encoded train+val arrays (tokens, charge, Y, mask, split), cached to .npz."""
+    """Encoded train+val arrays (tokens, charge, Y, mask, split) cached to .npz."""
     cache = resolve(cfg.out_dir, cfg.cache_file)
     if cache.exists():
         print(f"loading cached arrays from {cache}")
@@ -147,13 +130,11 @@ def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
             return {k: z[k] for k in z.files}
 
     t0 = time.time()
-    splits = pd.read_parquet(resolve(cfg.data_dir, cfg.split_file))
-    splits = splits[splits["split"].isin(["train", "val"])]          # test is never loaded
-    spectra = pd.read_parquet(resolve(cfg.data_dir, cfg.spectra_file),
-                              columns=["raw_file", "scan_number", "peptide_sequence",
-                                       "precursor_charge", "matched_ions", "intensities_raw"])
-    df = splits.merge(spectra, on=["raw_file", "scan_number"], how="inner", validate="one_to_one")
-    assert len(df) == len(splits), "split file references spectra missing from the data"
+    df = pd.read_parquet(resolve(cfg.data_dir, cfg.data_file),
+                         columns=["raw_file", "scan_number", "peptide_sequence", "precursor_charge",
+                                  "matched_ions", "intensities_raw", "split"],
+                         filters=[("split", "in", ["train", "val"])])          # test is never loaded
+    assert set(df["split"]) == {"train", "val"}
     df = df.sort_values(["raw_file", "scan_number"]).reset_index(drop=True)
 
     arrays = {
@@ -177,10 +158,6 @@ def batches(idx: np.ndarray, tensors, batch_size: int, shuffle: bool, gen: torch
         b = torch.from_numpy(idx[s:s + batch_size]).to(tensors[0].device)
         yield tuple(t[b] for t in tensors)
 
-
-# --------------------------------------------------------------------------- #
-# Train / eval
-# --------------------------------------------------------------------------- #
 
 @torch.inference_mode()
 def predict(model, idx, tensors, batch_size) -> np.ndarray:
@@ -281,7 +258,7 @@ def run(cfg: Config) -> dict:
             print(f"early stop: no val SA improvement for {cfg.patience} epochs")
             break
 
-    # final metrics from the best checkpoint
+    #metrics from best checkpoint
     model.load_state_dict(torch.load(ckpt_path, map_location=device)["state_dict"])
     metrics = evaluate(predict(model, va_idx, tensors, 4096), Yv, Mv, Zv)
 
