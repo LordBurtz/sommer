@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import random
@@ -39,6 +40,9 @@ class Config:
     #model
     emb: int = 64
     hidden: int = 128
+    head: str = "pooled"
+    use_frag: bool = False
+    activation: str = "softplus"
     #optimisation (early stopping)
     lr: float = 1e-3
     weight_decay: float = 1e-5
@@ -52,30 +56,67 @@ class Config:
     smoke_n: int = 2000
 
 
+FRAGS = ("2xIT_2xHCD-1h", "DDA-1h")
+CACHE_KEYS = ("tokens", "charge", "frag", "Y", "mask", "is_val")
+ACTIVATIONS = {"softplus": torch.nn.functional.softplus, "sigmoid": torch.sigmoid}
+
+
+def place_bonds(bond_out: torch.Tensor, n_res: torch.Tensor) -> torch.Tensor:
+    n = torch.arange(1, bond_out.size(1) + 1, device=bond_out.device).unsqueeze(0)
+    n_res = n_res.unsqueeze(1)
+    valid = n < n_res
+    b = bond_out[..., 0]
+    y = bond_out[..., 1].gather(1, (n_res - 1 - n).clamp(min=0))
+    return (torch.stack([b, y], dim=-1) * valid.unsqueeze(-1)).flatten(1)
+
+
 class PrositLike(nn.Module):
-    def __init__(self, vocab=c.VOCAB_SIZE, n_charge=6, emb=64, hidden=128, out=c.VECTOR_DIM):
+    def __init__(self, vocab=c.VOCAB_SIZE, n_charge=6, emb=64, hidden=128, out=c.VECTOR_DIM, head="pooled",
+                 n_frag=0, activation="softplus"):
         super().__init__()
+        if head not in ("pooled", "bond"):
+            raise ValueError(f"unknown head {head!r}, expected 'pooled' or 'bond'")
+        if activation not in ACTIVATIONS:
+            raise ValueError(f"unknown activation {activation!r}, expected one of {sorted(ACTIVATIONS)}")
+        self.head_type = head
+        self.final_act = ACTIVATIONS[activation]
         self.tok_emb = nn.Embedding(vocab, emb, padding_idx=0)
         self.charge_emb = nn.Embedding(n_charge + 1, 16)
-        self.gru = nn.GRU(emb + 16, hidden, batch_first=True,
+        self.frag_emb = nn.Embedding(n_frag, 16) if n_frag else None
+        self.gru = nn.GRU(emb + 16 + (16 if n_frag else 0), hidden, batch_first=True,
                           bidirectional=True, num_layers=2, dropout=0.2)
-        self.attn = nn.Linear(2 * hidden, 1)
-        self.head = nn.Sequential(
-            nn.Linear(2 * hidden, hidden), nn.ReLU(), nn.Dropout(0.2),
-            nn.Linear(hidden, out),
-        )
+        if head == "pooled":
+            self.attn = nn.Linear(2 * hidden, 1)
+            self.head = nn.Sequential(
+                nn.Linear(2 * hidden, hidden), nn.ReLU(), nn.Dropout(0.2),
+                nn.Linear(hidden, out),
+            )
+        else:
+            self.bond_head = nn.Sequential(
+                nn.Linear(4 * hidden, hidden), nn.ReLU(), nn.Dropout(0.2),
+                nn.Linear(hidden, c.N_ION_TYPES),
+            )
 
-    def forward(self, tokens, charge):
+    def forward(self, tokens, charge, frag=None):
         pad_mask = (tokens != 0).float().unsqueeze(-1)        # (B, L, 1)
         x = self.tok_emb(tokens)                              # (B, L, emb)
         cz = self.charge_emb(charge).unsqueeze(1).expand(-1, x.size(1), -1)
         x = torch.cat([x, cz], dim=-1)
+        if self.frag_emb is not None:
+            if frag is None:
+                raise ValueError("model was built with the acquisition method as input, but frag is None")
+            fz = self.frag_emb(frag).unsqueeze(1).expand(-1, x.size(1), -1)
+            x = torch.cat([x, fz], dim=-1)
         h, _ = self.gru(x)                                    # (B, L, 2H)
+        if self.head_type == "bond":
+            bonds = torch.cat([h[:, :-1], h[:, 1:]], dim=-1)
+            out = self.final_act(self.bond_head(bonds))
+            return place_bonds(out, (tokens != 0).sum(dim=1))
         # Attention pooling over valid (non-pad) positions.
         score = self.attn(h).masked_fill(pad_mask == 0, -1e9)
         w = torch.softmax(score, dim=1)
         pooled = (w * h).sum(dim=1)                           # (B, 2H)
-        return torch.nn.functional.softplus(self.head(pooled))              # (B, out) in [0,1]
+        return self.final_act(self.head(pooled))              # (B, out) in [0,1]
 
 
 def masked_spectral_angle_loss(pred, target, mask, eps=1e-8):
@@ -125,21 +166,28 @@ def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
     """Encoded train+val arrays (tokens, charge, Y, mask, split) cached to .npz."""
     cache = resolve(cfg.out_dir, cfg.cache_file)
     if cache.exists():
-        print(f"loading cached arrays from {cache}")
         with np.load(cache) as z:
-            return {k: z[k] for k in z.files}
+            missing = [k for k in CACHE_KEYS if k not in z.files]
+            if not missing:
+                print(f"loading cached arrays from {cache}")
+                return {k: z[k] for k in CACHE_KEYS}
+        print(f"cache {cache} lacks {missing}, rebuilding")
 
     t0 = time.time()
     df = pd.read_parquet(resolve(cfg.data_dir, cfg.data_file),
                          columns=["raw_file", "scan_number", "peptide_sequence", "precursor_charge",
-                                  "matched_ions", "intensities_raw", "split"],
+                                  "frag", "matched_ions", "intensities_raw", "split"],
                          filters=[("split", "in", ["train", "val"])])          # test is never loaded
     assert set(df["split"]) == {"train", "val"}
     df = df.sort_values(["raw_file", "scan_number"]).reset_index(drop=True)
+    unknown = set(df["frag"]) - set(FRAGS)
+    if unknown:
+        raise ValueError(f"unknown acquisition methods {sorted(unknown)}, expected {FRAGS}")
 
     arrays = {
         "tokens": np.stack([c.encode_tokens(s) for s in df["peptide_sequence"]]).astype(np.int64),
         "charge": df["precursor_charge"].to_numpy(dtype=np.int64),
+        "frag": df["frag"].map({f: i for i, f in enumerate(FRAGS)}).to_numpy(dtype=np.int64),
         "Y": np.stack([c.ions_to_vector(i, v, normalize=True)
                        for i, v in zip(df["matched_ions"], df["intensities_raw"])]).astype(np.float32),
         "mask": np.stack([c.valid_slot_mask(s) for s in df["peptide_sequence"]]).astype(np.float32),
@@ -162,8 +210,8 @@ def batches(idx: np.ndarray, tensors, batch_size: int, shuffle: bool, gen: torch
 @torch.inference_mode()
 def predict(model, idx, tensors, batch_size) -> np.ndarray:
     model.eval()
-    return np.concatenate([model(tok, z).float().cpu().numpy()
-                           for tok, z, _, _ in batches(idx, tensors, batch_size, shuffle=False)])
+    return np.concatenate([model(tok, z, f).float().cpu().numpy()
+                           for tok, z, _, _, f in batches(idx, tensors, batch_size, shuffle=False)])
 
 
 def evaluate(pred: np.ndarray, Y: np.ndarray, mask: np.ndarray, charge: np.ndarray) -> dict:
@@ -175,7 +223,16 @@ def evaluate(pred: np.ndarray, Y: np.ndarray, mask: np.ndarray, charge: np.ndarr
             r = c.evaluate_vectors(Y[sel], pred[sel], mask[sel].astype(bool))
             res["by_charge"][str(z)] = {"spectral_angle": r["spectral_angle"],
                                         "pearson": r["pearson"], "n": r["n"]}
+        else:
+            res["by_charge"][str(z)] = {"spectral_angle": None, "pearson": None, "n": 0}
     return res
+
+
+def val_fingerprint(A: dict[str, np.ndarray], va_idx: np.ndarray) -> str:
+    h = hashlib.sha1()
+    for k in ("tokens", "charge", "Y"):
+        h.update(np.ascontiguousarray(A[k][va_idx]).tobytes())
+    return h.hexdigest()[:12]
 
 
 def plot_curve(history: list[dict], best_epoch: int, path: Path, title: str) -> None:
@@ -201,6 +258,12 @@ def plot_curve(history: list[dict], best_epoch: int, path: Path, title: str) -> 
 
 
 def run(cfg: Config) -> dict:
+    if cfg.head != "pooled":
+        cfg.tag = f"{cfg.tag}_{cfg.head}"
+    if cfg.use_frag:
+        cfg.tag = f"{cfg.tag}_frag"
+    if cfg.activation != "softplus":
+        cfg.tag = f"{cfg.tag}_{cfg.activation}"
     if cfg.smoke:
         cfg.max_epochs, cfg.tag = 1, cfg.tag + "_smoke"
     set_seed(cfg.seed)
@@ -217,10 +280,13 @@ def run(cfg: Config) -> dict:
         va_idx = np.sort(rng.choice(va_idx, cfg.smoke_n // 4, replace=False))
     print(f"n_train={len(tr_idx):,}  n_val={len(va_idx):,}")
 
-    tensors = tuple(torch.from_numpy(np.array(A[k])).to(device) for k in ("tokens", "charge", "Y", "mask"))
+    tensors = tuple(torch.from_numpy(np.array(A[k])).to(device) for k in ("tokens", "charge", "Y", "mask", "frag"))
     Yv, Mv, Zv = A["Y"][va_idx], A["mask"][va_idx], A["charge"][va_idx]
 
-    model = PrositLike(emb=cfg.emb, hidden=cfg.hidden).to(device)
+    model = PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,
+                       n_frag=len(FRAGS) if cfg.use_frag else 0, activation=cfg.activation).to(device)
+    n_params = sum(p.numel() for p in model.parameters())
+    print(f"model: {cfg.tag}  params={n_params:,}")
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, factor=cfg.lr_factor, patience=cfg.lr_patience)
     gen = torch.Generator().manual_seed(cfg.seed)
@@ -233,9 +299,9 @@ def run(cfg: Config) -> dict:
         t0 = time.time()
         model.train()
         tot, n = 0.0, 0
-        for tok, z, y, m in batches(tr_idx, tensors, cfg.batch_size, shuffle=True, gen=gen):
+        for tok, z, y, m, f in batches(tr_idx, tensors, cfg.batch_size, shuffle=True, gen=gen):
             opt.zero_grad(set_to_none=True)
-            loss = masked_spectral_angle_loss(model(tok, z), y, m)
+            loss = masked_spectral_angle_loss(model(tok, z, f), y, m)
             loss.backward()
             opt.step()
             tot += loss.item() * len(tok); n += len(tok)
@@ -268,12 +334,14 @@ def run(cfg: Config) -> dict:
         "model": "PrositLike",
         "tag": cfg.tag,
         "hyperparameters": {k: getattr(cfg, k) for k in
-                            ("emb", "hidden", "lr", "weight_decay", "batch_size", "max_epochs",
+                            ("emb", "hidden", "head", "use_frag", "activation", "lr", "weight_decay", "batch_size", "max_epochs",
                              "patience", "lr_factor", "lr_patience", "seed")}
                            | {"loss": "masked_spectral_angle", "scheduler": "ReduceLROnPlateau(val SA)"},
+        "n_params": n_params,
         "device": str(device),
         "n_train": int(len(tr_idx)),
         "n_val": int(len(va_idx)),
+        "val_fingerprint": val_fingerprint(A, va_idx),
         "epochs_trained": len(history),
         "best_epoch": best_epoch,
         **metrics,
