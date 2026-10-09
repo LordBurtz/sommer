@@ -31,8 +31,8 @@ VOCAB_SIZE = len(TOKENS)
 AA_BASIC = set("KRH")
 AA_ACIDIC = set("DE")
 
-# monoisotopic residue masses, "calculated mono mass" column of amino_acid_masses.xlsx
-# (source: https://proteomicsresource.washington.edu/protocols06/masses.php)
+# monoisotopic residue masses, calculated mono mass column of amino_acid_masses.xlsx
+# ( https://proteomicsresource.washington.edu/protocols06/masses.php)
 AA_MONO_MASS = {
     'A': 71.037114, 'R': 156.101111, 'N': 114.042927, 'D': 115.026943,
     'C': 103.009185, 'E': 129.042593, 'Q': 128.058578, 'G': 57.021464,
