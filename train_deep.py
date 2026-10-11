@@ -60,6 +60,8 @@ class Config:
 
 FRAGS = ("2xIT_2xHCD-1h", "DDA-1h")
 CACHE_KEYS = ("tokens", "charge", "frag", "Y", "mask", "is_val")
+READ_COLUMNS = ["raw_file", "scan_number", "peptide_sequence", "precursor_charge",
+                "frag", "matched_ions", "intensities_raw", "split"]
 ACTIVATIONS = {"softplus": torch.nn.functional.softplus, "sigmoid": torch.sigmoid}
 
 
@@ -121,6 +123,11 @@ class PrositLike(nn.Module):
         return self.final_act(self.head(pooled))              # (B, out) in [0,1]
 
 
+def build_model(cfg: Config) -> PrositLike:
+    return PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,
+                      n_frag=len(FRAGS) if cfg.use_frag else 0, activation=cfg.activation)
+
+
 def masked_spectral_angle_loss(pred, target, mask, eps=1e-8):
     pred = pred * mask
     target = target * mask
@@ -179,6 +186,21 @@ def new_checkpoint_path(cfg: Config) -> Path:
             path = folder / f"{stem}_{i}.pt"
 
 
+def encode(df: pd.DataFrame) -> dict[str, np.ndarray]:
+    """Model inputs and targets per row of df (shared with evaluate_test.py)."""
+    unknown = set(df["frag"]) - set(FRAGS)
+    if unknown:
+        raise ValueError(f"unknown acquisition methods {sorted(unknown)}, expected {FRAGS}")
+    return {
+        "tokens": np.stack([c.encode_tokens(s) for s in df["peptide_sequence"]]).astype(np.int64),
+        "charge": df["precursor_charge"].to_numpy(dtype=np.int64),
+        "frag": df["frag"].map({f: i for i, f in enumerate(FRAGS)}).to_numpy(dtype=np.int64),
+        "Y": np.stack([c.ions_to_vector(i, v, normalize=True)
+                       for i, v in zip(df["matched_ions"], df["intensities_raw"])]).astype(np.float32),
+        "mask": np.stack([c.valid_slot_mask(s) for s in df["peptide_sequence"]]).astype(np.float32),
+    }
+
+
 def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
     """Encoded train+val arrays (tokens, charge, Y, mask, split) cached to .npz."""
     cache = resolve(cfg.out_dir, cfg.cache_file)
@@ -191,25 +213,11 @@ def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
         print(f"cache {cache} lacks {missing}, rebuilding")
 
     t0 = time.time()
-    df = pd.read_parquet(resolve(cfg.data_dir, cfg.data_file),
-                         columns=["raw_file", "scan_number", "peptide_sequence", "precursor_charge",
-                                  "frag", "matched_ions", "intensities_raw", "split"],
-                         filters=[("split", "in", ["train", "val"])])          # test is never loaded
+    df = pd.read_parquet(resolve(cfg.data_dir, cfg.data_file), columns=READ_COLUMNS,
+                         filters=[("split", "in", ["train", "val"])])          # test only in evaluate_test.py
     assert set(df["split"]) == {"train", "val"}
     df = df.sort_values(["raw_file", "scan_number"]).reset_index(drop=True)
-    unknown = set(df["frag"]) - set(FRAGS)
-    if unknown:
-        raise ValueError(f"unknown acquisition methods {sorted(unknown)}, expected {FRAGS}")
-
-    arrays = {
-        "tokens": np.stack([c.encode_tokens(s) for s in df["peptide_sequence"]]).astype(np.int64),
-        "charge": df["precursor_charge"].to_numpy(dtype=np.int64),
-        "frag": df["frag"].map({f: i for i, f in enumerate(FRAGS)}).to_numpy(dtype=np.int64),
-        "Y": np.stack([c.ions_to_vector(i, v, normalize=True)
-                       for i, v in zip(df["matched_ions"], df["intensities_raw"])]).astype(np.float32),
-        "mask": np.stack([c.valid_slot_mask(s) for s in df["peptide_sequence"]]).astype(np.float32),
-        "is_val": (df["split"] == "val").to_numpy(),
-    }
+    arrays = encode(df) | {"is_val": (df["split"] == "val").to_numpy()}
     cache.parent.mkdir(parents=True, exist_ok=True)
     np.savez(cache, **arrays)
     print(f"encoded {len(df):,} spectra in {time.time() - t0:.0f}s -> {cache}")
@@ -231,9 +239,9 @@ def predict(model, idx, tensors, batch_size) -> np.ndarray:
                            for tok, z, _, _, f in batches(idx, tensors, batch_size, shuffle=False)])
 
 
-def evaluate(pred: np.ndarray, Y: np.ndarray, mask: np.ndarray, charge: np.ndarray) -> dict:
+def evaluate(pred: np.ndarray, Y: np.ndarray, mask: np.ndarray, charge: np.ndarray, split: str = "val") -> dict:
     out = c.evaluate_vectors(Y, pred, mask.astype(bool))
-    res = {"val_spectral_angle": out["spectral_angle"], "val_pearson": out["pearson"], "by_charge": {}}
+    res = {f"{split}_spectral_angle": out["spectral_angle"], f"{split}_pearson": out["pearson"], "by_charge": {}}
     for z in (2, 3, 4):
         sel = charge == z
         if sel.any():
@@ -301,8 +309,7 @@ def run(cfg: Config) -> dict:
     tensors = tuple(torch.from_numpy(np.array(A[k])).to(device) for k in ("tokens", "charge", "Y", "mask", "frag"))
     Yv, Mv, Zv = A["Y"][va_idx], A["mask"][va_idx], A["charge"][va_idx]
 
-    model = PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,
-                       n_frag=len(FRAGS) if cfg.use_frag else 0, activation=cfg.activation).to(device)
+    model = build_model(cfg).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"model: {cfg.tag}  params={n_params:,}")
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
