@@ -1,10 +1,12 @@
 """train 05 on fixed split
 
-  checkpoints/<tag>.pt            best checkpoint (by val spectral angle)
-  results/runs.jsonl              one JSON record appended per run
-  results/<tag>_curve.png         train loss / val SA per epoch
+  checkpoints/<tag>_<UTC start>.pt  best checkpoint (by val spectral angle), one file per run
+  results/runs.jsonl                one JSON record appended per run
+  results/<tag>_curve.png           train loss / val SA per epoch
+  <tag> ends in _seed<N>, e.g. deep_baseline_bond_seed1312
 Usage:
   uv run python train_deep.py                 # full run
+  uv run python train_deep.py --seed 7 --max-epochs 30
   uv run python train_deep.py --smoke         # ~2k spectra, 1 epoch
   uv run python train_deep.py --data-dir /content/drive/MyDrive/sommer
 """
@@ -162,6 +164,21 @@ def resolve(base: str, p: str) -> Path:
     return p if p.is_absolute() else Path(base) / p
 
 
+def new_checkpoint_path(cfg: Config) -> Path:
+    """checkpoints/<tag>_<UTC start>.pt, created right away so no other run can take the same name."""
+    folder = resolve(cfg.out_dir, "checkpoints")
+    folder.mkdir(parents=True, exist_ok=True)
+    stem = f"{cfg.tag}_{dt.datetime.now(dt.timezone.utc):%Y%m%d-%H%M%S}"
+    path, i = folder / f"{stem}.pt", 1
+    while True:
+        try:
+            with open(path, "x"):
+                return path
+        except FileExistsError:
+            i += 1
+            path = folder / f"{stem}_{i}.pt"
+
+
 def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
     """Encoded train+val arrays (tokens, charge, Y, mask, split) cached to .npz."""
     cache = resolve(cfg.out_dir, cfg.cache_file)
@@ -264,6 +281,7 @@ def run(cfg: Config) -> dict:
         cfg.tag = f"{cfg.tag}_frag"
     if cfg.activation != "softplus":
         cfg.tag = f"{cfg.tag}_{cfg.activation}"
+    cfg.tag = f"{cfg.tag}_seed{cfg.seed}"
     if cfg.smoke:
         cfg.max_epochs, cfg.tag = 1, cfg.tag + "_smoke"
     set_seed(cfg.seed)
@@ -291,8 +309,7 @@ def run(cfg: Config) -> dict:
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, factor=cfg.lr_factor, patience=cfg.lr_patience)
     gen = torch.Generator().manual_seed(cfg.seed)
 
-    ckpt_path = resolve(cfg.out_dir, f"checkpoints/{cfg.tag}.pt")
-    ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+    ckpt_path = new_checkpoint_path(cfg)
     history, best_sa, best_epoch, bad = [], -1.0, 0, 0
     t_start = time.time()
     for ep in range(1, cfg.max_epochs + 1):
@@ -360,7 +377,7 @@ def run(cfg: Config) -> dict:
           f"Pearson={metrics['val_pearson']:.4f}")
     for z, r in metrics["by_charge"].items():
         print(f"  z={z}: SA={r['spectral_angle']:.4f}  (n={r['n']:,})")
-    print(f"logged to {runs}")
+    print(f"logged to {runs}, checkpoint {ckpt_path}")
     return record
 
 
