@@ -11,6 +11,7 @@ dependencies = [
     "lightgbm>=4.6.0",
     "matplotlib>=3.10.9",
     "pandas>=3.0.3",
+    "pre-commit>=4.7.0",
     "pyarrow>=24.0.0",
     "scikit-learn>=1.9.0",
     "torch>=2.12.0",

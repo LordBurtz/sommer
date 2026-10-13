@@ -1,6 +1,7 @@
 # TODOS:
 Sort by priority?
 - Include `noincl` datapoints, recheck balancing + maybe add safeguards
+- `torch.set_default_tensor_type` to set device globally for a run
 
 # Future plans
 
