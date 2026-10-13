@@ -58,6 +58,14 @@ class PeptideEncoder(nn.Module):
             hidden_dimensions,
         )
 
+
+        self.fragment_head = nn.Sequential(
+            nn.Linear(hidden_dimensions, hidden_dimensions),
+            nn.GELU(),
+            nn.Linear(hidden_dimensions, 4),
+            nn.Softplus(),
+        )
+
         self.hidden_dimension = hidden_dimensions
 
     def forward(
@@ -88,7 +96,7 @@ class PeptideEncoder(nn.Module):
         )
 
         global_peptide_features = self.global_peptide_projection(
-            global_peptide_features
+            global_peptide_features + precursor_charge_features
         )
 
         # Fridolin Karger: recheck this, its 4am lol
@@ -113,7 +121,10 @@ class PeptideEncoder(nn.Module):
 
         cleavage_features = self.cleavage_site_projection(cleavage_features)
 
+        fragment_intensities = self.fragment_head(cleavage_features)
+
         return {
+            "fragment_intensities": fragment_intensities,
             "residue_features": masked_residual_features,
             "global_peptide_features": global_peptide_features,
             "cleavage_features": cleavage_features,
