@@ -77,7 +77,8 @@ class PeptideEncoder(nn.Module):
         fragment_intensities = self.fragment_head(cleavage_features)
 
         fragment_numbers = torch.arange(
-            1, fragment_intensities.size(1) + 1
+            1, fragment_intensities.size(1) + 1,
+            device=fragment_intensities.device,
         ).unsqueeze(0)
         peptide_lengths = residue_mask.sum(dim=1, keepdim=True)
         y_positions = (peptide_lengths - 1 - fragment_numbers).clamp(

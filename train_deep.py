@@ -30,6 +30,7 @@ import torch.nn as nn
 
 import common as c
 
+from refac.models import PeptideEncoder
 
 @dataclass
 class Config:
@@ -124,6 +125,9 @@ class PrositLike(nn.Module):
 
 
 def build_model(cfg: Config) -> PrositLike:
+    return PeptideEncoder(aa_vocab_size=21, mod_vocab_size=2, precursor_vocab_size=4)
+
+
     return PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,
                       n_frag=len(FRAGS) if cfg.use_frag else 0, activation=cfg.activation)
 
@@ -294,6 +298,7 @@ def run(cfg: Config) -> dict:
         cfg.max_epochs, cfg.tag = 1, cfg.tag + "_smoke"
     set_seed(cfg.seed)
     device = pick_device()
+    #torch.set_default_device(device)
     if device.type == "cpu":
         torch.set_num_threads(os.cpu_count())
     print(f"device: {device}")
