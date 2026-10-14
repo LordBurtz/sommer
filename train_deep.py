@@ -3,9 +3,12 @@
   checkpoints/<tag>_<UTC start>.pt  best checkpoint (by val spectral angle), one file per run
   results/runs.jsonl                one JSON record appended per run
   results/<tag>_curve.png           train loss / val SA per epoch
-  <tag> ends in _seed<N>, e.g. deep_baseline_bond_seed1312
+  <tag> ends in _fold<K>_seed<N>, e.g. deep_baseline_bond_fold1_seed1312
+Cross-validation (needs the fold column from add_folds.py): val = fold K, train = folds 1-9 except K,
+fold 0 is test and never loaded. --val-fold 1 (default) is the fixed train/val split.
 Usage:
   uv run python train_deep.py                 # full run
+  uv run python train_deep.py --val-fold 3    # val = fold 3
   uv run python train_deep.py --seed 7 --max-epochs 30
   uv run python train_deep.py --smoke         # ~2k spectra, 1 epoch
   uv run python train_deep.py --data-dir /content/drive/MyDrive/sommer
@@ -25,6 +28,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import torch
 import torch.nn as nn
 
@@ -55,12 +59,14 @@ class Config:
     lr_factor: float = 0.5
     lr_patience: int = 1
     seed: int = 1312
+    val_fold: int = 1
     smoke: bool = False
     smoke_n: int = 2000
 
 
 FRAGS = ("2xIT_2xHCD-1h", "DDA-1h")
-CACHE_KEYS = ("tokens", "charge", "frag", "Y", "mask", "is_val")
+N_FOLDS, TEST_FOLD = 10, 0
+CACHE_KEYS = ("tokens", "charge", "frag", "Y", "mask", "fold")
 READ_COLUMNS = ["raw_file", "scan_number", "peptide_sequence", "precursor_charge",
                 "frag", "matched_ions", "intensities_raw", "split"]
 ACTIVATIONS = {"softplus": torch.nn.functional.softplus, "sigmoid": torch.sigmoid}
@@ -206,7 +212,7 @@ def encode(df: pd.DataFrame) -> dict[str, np.ndarray]:
 
 
 def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
-    """Encoded train+val arrays (tokens, charge, Y, mask, split) cached to .npz."""
+    """Encoded train+val arrays (tokens, charge, Y, mask, fold 1-9) cached to .npz, one cache for all folds."""
     cache = resolve(cfg.out_dir, cfg.cache_file)
     if cache.exists():
         with np.load(cache) as z:
@@ -217,11 +223,15 @@ def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
         print(f"cache {cache} lacks {missing}, rebuilding")
 
     t0 = time.time()
-    df = pd.read_parquet(resolve(cfg.data_dir, cfg.data_file), columns=READ_COLUMNS,
+    data = resolve(cfg.data_dir, cfg.data_file)
+    if "fold" not in pq.read_schema(data).names:
+        raise SystemExit(f"{data} has no fold column, run: uv run python add_folds.py --data {data}")
+    df = pd.read_parquet(data, columns=READ_COLUMNS + ["fold"],
                          filters=[("split", "in", ["train", "val"])])          # test only in evaluate_test.py
     assert set(df["split"]) == {"train", "val"}
+    assert set(df["fold"]) == set(range(1, N_FOLDS)), sorted(set(df["fold"]))
     df = df.sort_values(["raw_file", "scan_number"]).reset_index(drop=True)
-    arrays = encode(df) | {"is_val": (df["split"] == "val").to_numpy()}
+    arrays = encode(df) | {"fold": df["fold"].to_numpy(dtype=np.int64)}
     cache.parent.mkdir(parents=True, exist_ok=True)
     np.savez(cache, **arrays)
     print(f"encoded {len(df):,} spectra in {time.time() - t0:.0f}s -> {cache}")
@@ -287,13 +297,15 @@ def plot_curve(history: list[dict], best_epoch: int, path: Path, title: str) -> 
 
 
 def run(cfg: Config) -> dict:
+    if not 1 <= cfg.val_fold < N_FOLDS:
+        raise ValueError(f"val_fold must be 1..{N_FOLDS - 1} (fold {TEST_FOLD} is test), got {cfg.val_fold}")
     if cfg.head != "pooled":
         cfg.tag = f"{cfg.tag}_{cfg.head}"
     if cfg.use_frag:
         cfg.tag = f"{cfg.tag}_frag"
     if cfg.activation != "softplus":
         cfg.tag = f"{cfg.tag}_{cfg.activation}"
-    cfg.tag = f"{cfg.tag}_seed{cfg.seed}"
+    cfg.tag = f"{cfg.tag}_fold{cfg.val_fold}_seed{cfg.seed}"
     if cfg.smoke:
         cfg.max_epochs, cfg.tag = 1, cfg.tag + "_smoke"
     set_seed(cfg.seed)
@@ -304,12 +316,14 @@ def run(cfg: Config) -> dict:
     print(f"device: {device}")
 
     A = load_arrays(cfg)
-    tr_idx, va_idx = np.where(~A["is_val"])[0], np.where(A["is_val"])[0]
+    assert (A["fold"] != TEST_FOLD).all(), "test rows in the training arrays"
+    is_val = A["fold"] == cfg.val_fold
+    tr_idx, va_idx = np.where(~is_val)[0], np.where(is_val)[0]
     if cfg.smoke:
         rng = np.random.default_rng(cfg.seed)
         tr_idx = np.sort(rng.choice(tr_idx, cfg.smoke_n, replace=False))
         va_idx = np.sort(rng.choice(va_idx, cfg.smoke_n // 4, replace=False))
-    print(f"n_train={len(tr_idx):,}  n_val={len(va_idx):,}")
+    print(f"val fold {cfg.val_fold}: n_train={len(tr_idx):,}  n_val={len(va_idx):,}")
 
     tensors = tuple(torch.from_numpy(np.array(A[k])).to(device) for k in ("tokens", "charge", "Y", "mask", "frag"))
     Yv, Mv, Zv = A["Y"][va_idx], A["mask"][va_idx], A["charge"][va_idx]
@@ -362,6 +376,7 @@ def run(cfg: Config) -> dict:
         "git_commit": git_commit(),
         "model": "PrositLike",
         "tag": cfg.tag,
+        "val_fold": cfg.val_fold,
         "hyperparameters": {k: getattr(cfg, k) for k in
                             ("emb", "hidden", "head", "use_frag", "activation", "lr", "weight_decay", "batch_size", "max_epochs",
                              "patience", "lr_factor", "lr_patience", "seed")}
