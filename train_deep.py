@@ -22,6 +22,7 @@ import json
 import os
 import random
 import subprocess
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -34,8 +35,6 @@ import torch.nn as nn
 
 import common as c
 
-from refac.models import PeptideEncoder
-
 @dataclass
 class Config:
     #paths (relative paths:data_dir / out_dir)
@@ -45,6 +44,7 @@ class Config:
     cache_file: str = "cache/deep_arrays_refac_trainval.npz"
     tag: str = "deep_baseline"
     #model
+    model: str = "gru" #"gru" or "transformer" 
     emb: int = 64
     hidden: int = 128
     head: str = "pooled"
@@ -130,13 +130,15 @@ class PrositLike(nn.Module):
         return self.final_act(self.head(pooled))              # (B, out) in [0,1]
 
 
-def build_model(cfg: Config) -> PrositLike:
-    return PeptideEncoder(aa_vocab_size=21, mod_vocab_size=2, precursor_vocab_size=4)
-
-
-    return PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,
+def build_model(cfg: Config) -> nn.Module:
+   if cfg.model == "transformer":
+       sys.path.append(str(Path(__file__).resolve().parent / "refac"))
+       from refac.models import PeptideEncoder
+       return PeptideEncoder(aa_vocab_size=21, mod_vocab_size=2, precursor_vocab_size=4) 
+   if cfg.model != "gru":
+        raise ValueError(f"unknown model {cfg.model!r}, expected 'gru' or 'transformer'")
+   return PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,
                       n_frag=len(FRAGS) if cfg.use_frag else 0, activation=cfg.activation)
-
 
 def masked_spectral_angle_loss(pred, target, mask, eps=1e-8):
     pred = pred * mask
@@ -297,6 +299,8 @@ def plot_curve(history: list[dict], best_epoch: int, path: Path, title: str) -> 
 
 
 def run(cfg: Config) -> dict:
+    if cfg.model != "gru":
+        cfg.tag = f"{cfg.tag}_{cfg.model}"
     if not 1 <= cfg.val_fold < N_FOLDS:
         raise ValueError(f"val_fold must be 1..{N_FOLDS - 1} (fold {TEST_FOLD} is test), got {cfg.val_fold}")
     if cfg.head != "pooled":
@@ -374,11 +378,11 @@ def run(cfg: Config) -> dict:
     record = {
         "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "git_commit": git_commit(),
-        "model": "PrositLike",
+        "model": type(model).__name__,
         "tag": cfg.tag,
         "val_fold": cfg.val_fold,
         "hyperparameters": {k: getattr(cfg, k) for k in
-                            ("emb", "hidden", "head", "use_frag", "activation", "lr", "weight_decay", "batch_size", "max_epochs",
+                            ("model","emb", "hidden", "head", "use_frag", "activation", "lr", "weight_decay", "batch_size", "max_epochs",
                              "patience", "lr_factor", "lr_patience", "seed")}
                            | {"loss": "masked_spectral_angle", "scheduler": "ReduceLROnPlateau(val SA)"},
         "n_params": n_params,
