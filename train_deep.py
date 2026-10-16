@@ -44,7 +44,7 @@ class Config:
     cache_file: str = "cache/deep_arrays_refac_trainval.npz"
     tag: str = "deep_baseline"
     #model
-    model: str = "gru" #"gru" or "transformer" 
+    model: str = "gru" #"gru" or "transformer"
     emb: int = 64
     hidden: int = 128
     head: str = "pooled"
@@ -129,15 +129,21 @@ class PrositLike(nn.Module):
         pooled = (w * h).sum(dim=1)                           # (B, 2H)
         return self.final_act(self.head(pooled))              # (B, out) in [0,1]
 
-
 def build_model(cfg: Config) -> nn.Module:
    if cfg.model == "transformer":
        sys.path.append(str(Path(__file__).resolve().parent / "refac"))
        from refac.models import PeptideEncoder
-       return PeptideEncoder(aa_vocab_size=21, mod_vocab_size=2, precursor_vocab_size=4) 
+       return PeptideEncoder(aa_vocab_size=21, mod_vocab_size=2, precursor_vocab_size=4)
    if cfg.model != "gru":
         raise ValueError(f"unknown model {cfg.model!r}, expected 'gru' or 'transformer'")
-   return PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,
+   return PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,)
+
+def build_model_fk(cfg: Config) -> PrositLike:
+    return PeptideEncoder(aa_vocab_size=21, mod_vocab_size=2, precursor_vocab_size=3)
+
+
+    return PrositLike(emb=cfg.emb, hidden=cfg.hidden, head=cfg.head,
+
                       n_frag=len(FRAGS) if cfg.use_frag else 0, activation=cfg.activation)
 
 def masked_spectral_angle_loss(pred, target, mask, eps=1e-8):
@@ -242,7 +248,7 @@ def load_arrays(cfg: Config) -> dict[str, np.ndarray]:
 
 def batches(idx: np.ndarray, tensors, batch_size: int, shuffle: bool, gen: torch.Generator | None = None):
     if shuffle:
-        idx = idx[torch.randperm(len(idx), generator=gen).numpy()]
+        idx = idx[torch.randperm(len(idx), generator=gen, device="cpu").numpy()]
     for s in range(0, len(idx), batch_size):
         b = torch.from_numpy(idx[s:s + batch_size]).to(tensors[0].device)
         yield tuple(t[b] for t in tensors)
@@ -314,7 +320,7 @@ def run(cfg: Config) -> dict:
         cfg.max_epochs, cfg.tag = 1, cfg.tag + "_smoke"
     set_seed(cfg.seed)
     device = pick_device()
-    #torch.set_default_device(device)
+    torch.set_default_device(device)
     if device.type == "cpu":
         torch.set_num_threads(os.cpu_count())
     print(f"device: {device}")

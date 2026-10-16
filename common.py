@@ -134,7 +134,7 @@ def ions_to_vector(
     intensities : matching raw intensity values.
     normalize : if True, divide by the maximum intensity (base-peak scaling)
         so the strongest fragment becomes 1.0.
-    
+
     todo [FK] ki generiert, war honestly zu dumm das richtig zu machen
     todo: rewrite by hand?
     """
@@ -178,7 +178,7 @@ def spectral_angle(
 ) -> float:
     """Spectral angle similarity (1 = identical, 0 = orthogonal)
 
-    SA = 1 - 2 * arccos(cosine_similarity) / pi. 
+    SA = 1 - 2 * arccos(cosine_similarity) / pi.
     ``masks`` makes it only look at actual existing fragments
     """
     t = np.asarray(true_vec, dtype=np.float64).ravel()
@@ -226,7 +226,9 @@ def evaluate_vectors(
     All inputs should be 2D arrays of shape ``(n_spectra, VECTOR_DIM)``
     All predictions are clipped to ``[0, 1]`` before scoring
     """
-    pred_mat = np.clip(pred_mat, 0.0, 1.0)
+    # TODO: FK confirm this is correct to scale invariantly
+    #pred_mat = np.clip(pred_mat, 0.0, 1.0)
+    pred_mat = pred_mat / np.max(pred_mat)
     sa, pe = [], []
     for t, p, m in zip(true_mat, pred_mat, masks):
         sa.append(spectral_angle(t, p, m))
