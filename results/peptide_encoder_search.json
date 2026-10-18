@@ -1,0 +1,138 @@
+{
+  "seed": 1312,
+  "smoke": false,
+  "best": {
+    "params": {
+      "hidden_dimensions": 256,
+      "transformer_layers": 6,
+      "attention_heads": 8,
+      "lr": 0.0006038585076587369,
+      "weight_decay": 1.8421828349040193e-06,
+      "batch_size": 128
+    },
+    "val_spectral_angle": 0.8495081956341103,
+    "best_epoch": 30
+  },
+  "trials": [
+    {
+      "params": {
+        "hidden_dimensions": 256,
+        "transformer_layers": 6,
+        "attention_heads": 8,
+        "lr": 0.0030510394510974395,
+        "weight_decay": 8.126288125587553e-06,
+        "batch_size": 256
+      },
+      "val_spectral_angle": 0.7893535293390134,
+      "best_epoch": 8
+    },
+    {
+      "params": {
+        "hidden_dimensions": 256,
+        "transformer_layers": 6,
+        "attention_heads": 4,
+        "lr": 0.0014689502669040125,
+        "weight_decay": 0.005814069949986366,
+        "batch_size": 128
+      },
+      "val_spectral_angle": 0.8422827406912133,
+      "best_epoch": 30
+    },
+    {
+      "params": {
+        "hidden_dimensions": 256,
+        "transformer_layers": 6,
+        "attention_heads": 8,
+        "lr": 0.0006038585076587369,
+        "weight_decay": 1.8421828349040193e-06,
+        "batch_size": 128
+      },
+      "val_spectral_angle": 0.8495081956341103,
+      "best_epoch": 30
+    },
+    {
+      "params": {
+        "hidden_dimensions": 64,
+        "transformer_layers": 6,
+        "attention_heads": 4,
+        "lr": 0.0024125477267211083,
+        "weight_decay": 2.2269771161392813e-05,
+        "batch_size": 256
+      },
+      "val_spectral_angle": 0.839295577094606,
+      "best_epoch": 25
+    },
+    {
+      "params": {
+        "hidden_dimensions": 64,
+        "transformer_layers": 6,
+        "attention_heads": 8,
+        "lr": 0.00014325452569285233,
+        "weight_decay": 0.004100860682085059,
+        "batch_size": 256
+      },
+      "val_spectral_angle": 0.8255307066684767,
+      "best_epoch": 30
+    },
+    {
+      "params": {
+        "hidden_dimensions": 128,
+        "transformer_layers": 2,
+        "attention_heads": 4,
+        "lr": 0.0007729491365910783,
+        "weight_decay": 1.6733555757343077e-06,
+        "batch_size": 128
+      },
+      "val_spectral_angle": 0.8389099635412361,
+      "best_epoch": 29
+    },
+    {
+      "params": {
+        "hidden_dimensions": 256,
+        "transformer_layers": 2,
+        "attention_heads": 8,
+        "lr": 0.0013839292929462882,
+        "weight_decay": 0.0001487164201938343,
+        "batch_size": 256
+      },
+      "val_spectral_angle": 0.8443961240204868,
+      "best_epoch": 30
+    },
+    {
+      "params": {
+        "hidden_dimensions": 64,
+        "transformer_layers": 2,
+        "attention_heads": 8,
+        "lr": 0.0014678181633829724,
+        "weight_decay": 8.148420566802692e-05,
+        "batch_size": 256
+      },
+      "val_spectral_angle": 0.8323566210601699,
+      "best_epoch": 25
+    },
+    {
+      "params": {
+        "hidden_dimensions": 128,
+        "transformer_layers": 2,
+        "attention_heads": 8,
+        "lr": 0.0014398745833525894,
+        "weight_decay": 1.166538445169245e-06,
+        "batch_size": 256
+      },
+      "val_spectral_angle": 0.8398422096530073,
+      "best_epoch": 29
+    },
+    {
+      "params": {
+        "hidden_dimensions": 64,
+        "transformer_layers": 4,
+        "attention_heads": 4,
+        "lr": 0.0005180138081856759,
+        "weight_decay": 4.674946501634409e-05,
+        "batch_size": 256
+      },
+      "val_spectral_angle": 0.8335860223191494,
+      "best_epoch": 28
+    }
+  ]
+}
