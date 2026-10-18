@@ -10,11 +10,11 @@ import common as c
 
 ROOT = Path(__file__).resolve().parent
 MODELS = (
-    'AlphaPeptDeep_ms2_generic',
-    'Altimeter_2024_intensities',
-    'ms2pip_HCD2021',
-    'Prosit_2025_intensity_22PTM',
-    'Prosit_2020_intensity_CID'
+    # 'AlphaPeptDeep_ms2_generic',
+    # 'Altimeter_2024_intensities',
+    # 'ms2pip_HCD2021',
+    # 'Prosit_2025_intensity_22PTM',
+    'Prosit_2020_intensity_CID',
     )
 BATCH_SIZE = 1000
 COLLISION_ENERGY = 35.0
@@ -37,12 +37,14 @@ def predict(batch, model):
         {'name': name, 'datatype': datatype, 'shape': [len(batch), 1], 'data': values}
         for name, datatype, values in inputs
     ]}
+
     request = Request(
         f'https://koina.wilhelmlab.org/v2/models/{model}/infer',
         data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'},
     )
     with urlopen(request, timeout=120) as response:
         outputs = json.load(response)['outputs']
+
     result = batch.copy()
     for output in outputs:
         name = 'annotation' if output['name'] == 'annotations' else output['name']
@@ -94,7 +96,7 @@ def main():
     for model in MODELS:
         scores = []
         batch_size = min(BATCH_SIZE, 100) if model == 'Altimeter_2024_intensities' else BATCH_SIZE
-        for start in range(0, len(spectra) - 30000, batch_size):
+        for start in range(0, len(spectra), batch_size):
             batch = predict(spectra.iloc[start:start + batch_size], model)
             scores.append(score(batch).assign(model=model))
             print(f'{model}: {min(start + batch_size, len(spectra))}/{len(spectra)}', flush=True)
