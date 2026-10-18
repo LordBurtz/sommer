@@ -70,10 +70,61 @@ def score(predictions):
         mask = c.valid_slot_mask(row.peptide_sequence)
         rows.append({
             'precursor_charge': row.precursor_charge,
+            'peptide_sequence': row.peptide_sequence,
+            'peptide_length': c.peptide_length(row.peptide_sequence),
             'spectral_angle': c.spectral_angle(target, predicted, mask),
             'pearson': c.pearson_corr(target, predicted, mask),
         })
     return pd.DataFrame(rows)
+
+
+def plot_charge2_sa_error_by_length(metrics, model):
+    import matplotlib.pyplot as plt
+
+    frame = metrics.loc[metrics['precursor_charge'].eq(2)].copy()
+    modification_codes = frame['peptide_sequence'].str.findall(r'UNIMOD:(\d+)').map(
+        lambda codes: frozenset(map(int, codes))
+    )
+    categories = {
+        frozenset(): 'Unmodified',
+        frozenset({4}): 'Modified:4',
+        frozenset({35}): 'Modified:35',
+        frozenset({4, 35}): '4&35',
+    }
+    frame['modification'] = modification_codes.map(categories)
+    frame = frame.dropna(subset=['modification'])
+    if frame.empty:
+        print(f'No charge-2 spectra in the four requested modification groups for {model}.')
+        return None
+
+    frame['sa_error'] = 1 - frame['spectral_angle']
+    summary = frame.groupby(['peptide_length', 'modification'], observed=True).agg(
+        mean_error=('sa_error', 'mean'), sem=('sa_error', 'sem'), n=('sa_error', 'size'),
+    ).reset_index()
+    colors = {
+        'Unmodified': '#0072B2', 'Modified:4': '#D55E00',
+        'Modified:35': '#009E73', '4&35': '#CC79A7',
+    }
+    markers = {'Unmodified': 'o', 'Modified:4': 's', 'Modified:35': '^', '4&35': 'D'}
+    figure, axis = plt.subplots(figsize=(10, 5), constrained_layout=True)
+    for category in categories.values():
+        group = summary.loc[summary['modification'].eq(category)]
+        if group.empty:
+            continue
+        axis.errorbar(
+            group['peptide_length'], group['mean_error'], yerr=group['sem'].fillna(0),
+            label=f'{category} (n={group["n"].sum():,})', color=colors[category],
+            marker=markers[category], linewidth=1.6, markersize=5, capsize=2,
+        )
+    axis.set(
+        xlabel='Peptide length (residues)', ylabel='Mean SA error (1 - spectral angle)',
+        title=f'{model}: charge 2', ylim=(0, 1),
+    )
+    axis.legend(title='Modification')
+    axis.grid(axis='y', alpha=0.25)
+    plt.show()
+    return figure, axis
+
 
 def print_summary(summary, metrics):
     print('\nValidation accuracy (singly charged b/y ions; higher is better):')
@@ -101,6 +152,7 @@ def main():
             scores.append(score(batch).assign(model=model))
             print(f'{model}: {min(start + batch_size, len(spectra))}/{len(spectra)}', flush=True)
         metrics = pd.concat(scores, ignore_index=True)
+        plot_charge2_sa_error_by_length(metrics, model)
         summary = dict(n=('spectral_angle', 'size'),
                        mean_sa=('spectral_angle', 'mean'),
                        mean_pearson=('pearson', 'mean'))
