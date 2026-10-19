@@ -17,7 +17,10 @@ from sommer import peptides
 from sommer.constants import VECTOR_DIM
 
 URL = "https://koina.wilhelmlab.org/v2/models/{model}/infer"
-DEFAULT_MODELS = ("Prosit_2020_intensity_CID",)
+DEFAULT_MODELS = (
+    "Prosit_2020_intensity_CID",
+    "Prosit_2025_intensity_22PTM",
+)
 COLLISION_ENERGY = 35.0
 FRAGMENTATION_TYPE = "CID"
 INSTRUMENT_TYPE = "QE"
