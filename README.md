@@ -1,115 +1,93 @@
-# How to run
-Sync all dependencies to local
+# Fragment ion intensity prediction (CID MS/MS)
+
+Predict the intensities of singly charged b/y fragment ions from a peptide sequence and its precursor
+charge (2, 3, 4). the test split is never used
+
+## Setup
+```
+uv sync                      # creates .venv, installs dependencies and the `sommer` package (editable)
+source .venv/bin/activate
+uv run pytest                # tests on fabricated data, no research data needed
+```
+
+## Pipeline
+Notebooks run inside `refac/`, the `sommer` package works from anywhere.
+
+| step | entry point | reads | writes |
+|---|---|---|---|
+| 1. merge, clean, split | `refac/01_data_cleansing.ipynb` | `data_for_student.parquet`, `metadata_for_student.parquet` | `refac/clean_spectra_*split.parquet`, `refac/data_without_precursor_charge.parquet` |
+| 2. impute precursor charge | `refac/02_precursor_charge.ipynb` | train/val split, rows without charge | CatBoost model, `refac/spectra_with_charge.parquet` (train + val + imputed, no test) |
+| 3. train | `refac/03_train.ipynb` or `python -m sommer.train` | `refac/spectra_with_charge.parquet` | `results/run_log.jsonl`, `checkpoints/`, `results/curves/` |
+| 4. compare | `refac/04_compare.ipynb` or `python -m sommer.compare` | `results/run_log.jsonl`, Koina API | Koina scores cached in the run log |
+
+Split: `StratifiedGroupKFold(10, random_state=187)` grouped by `stripped_sequence`, stratified on
+`frag` x `precursor_charge`; fold 0 = test, fold 1 = val, folds 2-9 = train. Training uses train + the
+spectra whose charge was imputed in step 2; validation uses annotated val spectra only.
+
+```
+uv run python -m sommer.train --list
+uv run python -m sommer.train --model PrositLike --preliminary            # smoke run, ~seconds
+uv run python -m sommer.train --model PeptideEncoder -p hidden_dimensions=256 -p transformer_layers=6 \
+    --lr 6e-4 --weight-decay 1.8e-6 --batch-size 128 --max-epochs 100 --patience 15
+uv run python -m sommer.compare --recent 3                                # --no-koina to stay offline
+```
+
+## Code layout (`sommer/`)
+```
+constants.py  peptides.py      vocabulary, masses, parsing, 58-slot b/y vector (slot = (n-1)*2 + {b:0, y:1})
+metrics.py                     spectral angle + Pearson (per spectrum, masked, scale invariant), per-charge summary
+buckets.py                     charge x length bin x modified breakdown
+data.py                        load/encode/cache train + val (test rows are filtered out at parquet level)
+models/base.py                 FragmentModel: forward(tokens, precursor_charge) -> (B, 58); Predictor protocol
+models/registry.py             @register_model, build_model(name, params)
+models/layers.py               shared blocks (positional encoding, transformer, pooling, place_bonds)
+models/prosit_like.py          GRU baseline;  models/peptide_encoder.py  transformer
+training/config.py             TrainConfig: every knob of the training algorithm
+training/components.py         losses / optimizers / schedulers by name
+training/trainer.py            generic Trainer (early stopping on val SA, best epoch restored, logging)
+training/search.py             grid / random hyperparameter search (preliminary runs)
+evaluation.py                  one scoring function for our models, checkpoints and Koina
+tracking.py                    run log (JSON lines) + checkpoints
+koina.py  compare.py           Koina predictor, leaderboard and recent-vs-previous-vs-Koina comparison
+legacy_logs.py                 one-off migration of the old run logs (re-scores old checkpoints)
+```
+
+### Adding a model
+Create `sommer/models/my_model.py`; it is discovered automatically:
 ```python
-$ uv sync
+from sommer.models import FragmentModel, register_model
+
+@register_model
+class MyModel(FragmentModel):
+    def __init__(self, hidden: int = 128):          # keyword args only, stored in the checkpoint
+        super().__init__()
+        ...
+
+    def forward(self, tokens, precursor_charge):    # (B, 30) int64, (B,) int64 raw charge -> (B, 58)
+        ...
 ```
+Then `python -m sommer.train --model MyModel -p hidden=256`. Add it to `SMALL` in `tests/test_models.py`.
 
-create the virtual environemnt
-```python
-$ uv venv
-```
+### Changing the training algorithm
+- a different loss / optimizer / schedule: a `TrainConfig` field (`loss="masked_mse"`, `scheduler="cosine"`, `grad_clip=1.0`, ...)
+- a new one: add an entry to the dicts in `training/components.py`
+- anything else: subclass `Trainer` and override one step (`build_optimizer`, `build_scheduler`,
+  `compute_loss`, `train_epoch`, `validate`); example in `refac/03_train.ipynb`
 
-sync dependencies
-```python
-$ uv sync
-```
+### Run log
+`results/run_log.jsonl` holds one record per full run (model, params, config, data fingerprints, val SA /
+Pearson overall, per charge and per bucket, history, checkpoint, git commit), Koina scores
+(`source="koina"`) and migrated legacy runs (`source="legacy:*"`). Smoke runs and search trials go to
+`results/preliminary_runs.jsonl` and never reach the leaderboard. Runs are comparable when their
+`val_fingerprint` matches.
 
-activate the virtual environment
-```python
-$ source .venv/bin/activate
-```
+Metric note: scores logged by the old tooling before 2026-10-16 clipped predictions to [0, 1]; the
+current metric is scale invariant. Migrated runs with a checkpoint were re-scored (old value kept as
+`logged_val_sa`).
 
-add a package
-```python
-$ uv add
-```
-
-# Current tooling
-Pipeline in order, run from repo root (except `refac/` notebooks, which run inside `refac/`)
-
-Split (refac/01): 10 folds, `StratifiedGroupKFold(random_state=187)`, grouped by `stripped_sequence`,
-stratified on `frag`x`precursor_charge`
-Fold 0 = test, fold 1 = val, folds 2-9 = train. 
-split is fixed. CV moves val fold over folds 1-9 and never touches fold 0.
-
-1. **`refac/01_data_cleansing.ipynb`**: cleaning and split. Reads `data_for_student.parquet` +
-   `metadata_for_student.parquet`, writes `refac/clean_spectra_split.parquet` (`split`column),
-   `_train/_val/_test_split` convenience files & `refac/data_without_precursor_charge.parquet`.
-   ```
-   cd refac && uv run jupyter nbconvert --to notebook --execute --inplace 01_data_cleansing.ipynb
-   ```
-2. **`add_folds.py`**: adds `fold` column (0-9) to `refac/clean_spectra_split.parquet`. 
-   Recomputes folds of 01 and writes only if fold 0 == test and fold 1 == val (row by row)
-   Takes ~15 min
-   ```
-   uv run python add_folds.py
-   ```
-   After rerunning 01: run `add_folds.py` again & lete `cache/deep_arrays_refac_trainval.npz`
-   (the cache only rebuilt when a key is missing, not when data changes)
-
-3. **`refac/02_precursor_charge.ipynb`**: CatBoost precursor charge classifier + Optuna search, every config
-   appended to `refac/model_training_metadata_precursor_charge.json`. 
-   Needs `optuna`, which is not in
-   `pyproject.toml` yet
-   ```
-   cd refac && uv run jupyter nbconvert --to notebook --execute --inplace 02_precursor_charge.ipynb
-   ```
-4. **`train_deep.py`**: deep intensity model (b/y, 58 slots), early stopping on val spect angle
-   `--val-fold K` (1-9, default 1): val = fold K, train = the other folds 1-9. Appends one record to
-   `results/runs.jsonl` (smoke: `results/smoke_runs.jsonl`), best checkpoint to
-   `checkpoints/<tag>_<UTC start>.pt`, curve to `results/<tag>_curve.png`. The tag ends in `_fold<K>_seed<N>`.
-   ```
-   uv run python train_deep.py --smoke              # 2k spectra, 1 epoch: run this first
-   uv run python train_deep.py                      # full run, val = fold 1
-   uv run python train_deep.py --head bond --use-frag --activation sigmoid --val-fold 3
-   ```
-5. **`06_deep_baseline.ipynb`**: Colab driver around `train_deep.main` (clones `master`, data from Drive).
-   The Drive copy of `clean_spectra_split.parquet` needs the `fold` column: upload the local file after
-   step 2, or run `!python add_folds.py --data /content/drive/MyDrive/sommer/clean_spectra_split.parquet`.
-6. **`compare_runs.py`**: all runs, val SA overall and per charge, difference baseline run
-   Runs scored on another val fold show "other val"
-   ```
-   uv run python compare_runs.py
-   uv run python compare_runs.py --file results/smoke_runs.jsonl
-   ```
-7. **`baseline_lookup.py`**: lookup-table baseline (from 03) on folds 1-5, with same train/val, arrays
-   & scoring as`train_deep.py`.
-   ```
-   uv run python baseline_lookup.py
-   ```
-8. **`bucket_eval.py`**: one checkpoint on its own val fold, by precursor chargexlength (7-12, 13-18,
-   19-24, 25-30) x modified, with n, mean and median SA. Writes `results/bucket_eval_<checkpoint>.csv`
-   ```
-   uv run python bucket_eval.py checkpoints/<tag>_<UTC start>.pt
-   ```
-9. **`evaluate_test.py`**:only script that loads the test split (fold 0)
-   Writes `results/test_results.json`
-   ```
-   uv run python evaluate_test.py checkpoints/<a>.pt checkpoints/<b>.pt
-   ```
-10. **`make_figures.py`**: report figures from `results/runs.jsonl` + `results/test_results.json`
-    into `results/figures/`.
-    ```
-    uv run python make_figures.py
-    ```
-
-Tests:
-```
-uv run python test_common.py
-uv run python test_train_deep.py
-```
-Shared code: `common.py` (tokens, 58-slot b/y vector, spectral angle, monoisotopic masses) and
-`refac/refac_common.py` (for the refac notebooks, imports nothing from outside `refac/`).
-
-## Legacy (old split and/or avg masses)
-Reference only. numbers are not comparable with the ones above
-- `01_data_cleaning.ipynb`, `02_precursor_charge.ipynb` (top level): replaced by `refac/01` and `refac/02`
-- `03_intensity_baseline.ipynb`: lookup + ridge on an 80k subsample with its own GroupKFold
-  (the lookup is now `baseline_lookup.py`)
-- `04_intensity_gbm.ipynb`, `05_intensity_deep.ipynb`
-- `aa_data_cleansing.ipynb`, `data_exploration.ipynb`, `predict-precursorcharge.ipynb`
-- `SyntheticDataGeneration.ipynb`: Colab, own KFold/GroupKFold on the raw data
-- `common_tools.py`: average masses labelled as monoisotopic, don't copy from it
-- `clean_spectra.parquet`, `spectra_with_charge.parquet`, `*.pkl`, `*.model`, `approach*_score.npy`:
-  outputs of the old notebooks
-- `not_needed/`: retired, old split leaked the same peptide (with different mods) across train and test
+## Legacy
+`legacy/` holds superseded code and outputs for reference (old split and/or average masses; numbers are
+not comparable): the top-level 01-05 notebooks, `train_deep.py`, `common.py`, `08_training_pipeline.ipynb`,
+the Colab driver `06_deep_baseline.ipynb`, `evaluate_test.py`, `make_figures.py`, `bucket_eval.py`,
+`baseline_lookup.py`, `predict_koina.py`, ... `refac/07_model_diagnostics.ipynb` still imports the legacy
+modules and has not been ported yet.
