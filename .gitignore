@@ -13,3 +13,6 @@ results/*.png
 results/smoke_runs.jsonl
 results/curves/
 results/preliminary_runs.jsonl
+
+.DS_Store
+*.swp

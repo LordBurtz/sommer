@@ -1,12 +1,11 @@
 # TODOS:
 Sort by priority?
-- Include `noincl` datapoints, recheck balancing + maybe add safeguards
 - `torch.set_default_tensor_type` to set device globally for a run
 
 # Future plans
 
 ## Data cleaning
-Currently we are excluding data points acquisited by `noincl` - victor told FK explicitly to include those
+`noincl` data points are included now (refac/01 step 6), as victor told FK
 
 ## Benchmarking
 High level idea

@@ -108,7 +108,7 @@ def test_compare_against_previous_and_koina(env, monkeypatch):
     assert len(table) == 3 and table["val_sa"].is_monotonic_decreasing
     recent = compare.compare_recent(table, recent=2, print_table=False)
     assert len(recent) == 2 and recent["koina"].eq("Koina FakeKoina").all()
-    assert recent["prev_best"].iloc[-1] is None              # oldest run has nothing earlier
+    assert pd.isna(recent["prev_best"].iloc[-1])             # oldest run has nothing earlier
     assert not compare.bucket_frame(table["run_id"].tolist(), dirs["run_log"]).empty
 
 

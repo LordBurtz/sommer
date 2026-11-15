@@ -19,10 +19,13 @@ Notebooks run inside `refac/`, the `sommer` package works from anywhere.
 | 2. impute precursor charge | `refac/02_precursor_charge.ipynb` | train/val split, rows without charge | CatBoost model, `refac/spectra_with_charge.parquet` (train + val + imputed, no test) |
 | 3. train | `refac/03_train.ipynb` or `python -m sommer.train` | `refac/spectra_with_charge.parquet` | `results/run_log.jsonl`, `checkpoints/`, `results/curves/` |
 | 4. compare | `refac/04_compare.ipynb` or `python -m sommer.compare` | `results/run_log.jsonl`, Koina API | Koina scores cached in the run log |
+| 5. diagnostics | `refac/07_model_diagnostics.ipynb` | `refac/clean_spectra_val_split.parquet`, checkpoints | figures (inline) |
 
 Split: `StratifiedGroupKFold(10, random_state=187)` grouped by `stripped_sequence`, stratified on
 `frag` x `precursor_charge`; fold 0 = test, fold 1 = val, folds 2-9 = train. Training uses train + the
-spectra whose charge was imputed in step 2; validation uses annotated val spectra only.
+spectra whose charge was imputed in step 2; validation uses annotated val spectra only. The `noincl`
+runs have no metadata, so they only enter through step 2 (mapped to their base regime, flagged in the
+`noincl` column). Imputed spectra whose stripped sequence is in val or test are dropped.
 
 ```
 uv run python -m sommer.train --list
@@ -79,7 +82,8 @@ Then `python -m sommer.train --model MyModel -p hidden=256`. Add it to `SMALL` i
 Pearson overall, per charge and per bucket, history, checkpoint, git commit), Koina scores
 (`source="koina"`) and migrated legacy runs (`source="legacy:*"`). Smoke runs and search trials go to
 `results/preliminary_runs.jsonl` and never reach the leaderboard. Runs are comparable when their
-`val_fingerprint` matches.
+`val_fingerprint` matches. Entries with `"note": "split with duplicates"` were scored before refac/01
+dropped the 110 duplicated raw_file/scan pairs, so their split differs from the current one.
 
 Metric note: scores logged by the old tooling before 2026-10-16 clipped predictions to [0, 1]; the
 current metric is scale invariant. Migrated runs with a checkpoint were re-scored (old value kept as
@@ -89,5 +93,4 @@ current metric is scale invariant. Migrated runs with a checkpoint were re-score
 `legacy/` holds superseded code and outputs for reference (old split and/or average masses; numbers are
 not comparable): the top-level 01-05 notebooks, `train_deep.py`, `common.py`, `08_training_pipeline.ipynb`,
 the Colab driver `06_deep_baseline.ipynb`, `evaluate_test.py`, `make_figures.py`, `bucket_eval.py`,
-`baseline_lookup.py`, `predict_koina.py`, ... `refac/07_model_diagnostics.ipynb` still imports the legacy
-modules and has not been ported yet.
+`baseline_lookup.py`, `predict_koina.py`, ...
