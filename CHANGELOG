@@ -1,15 +1,18 @@
+2026-10-20 FK:
+    pass precursor charge embedding into transformer layerss
+    add huber loss function
+
 2026-06-12 FK:
     incomplete data angeschaut, uns fehlen ca 5k precursor charges, ansonsten ist alles complete
     in common_tools.py eine funktion geschrieben, die die precursor charge errechnet, noch nicht verfiziert
 
     TODO: accuracy of common_tools testen mit existing dataset vs simple machine learning model
 
-
 Open questions to Victor:
 - there is 1 datapoint with precursor charge 6, 11 with charge 1, can we ignore them?
 
-Key findings: 
-    peptide length 7–30, 
-    single-charge b/y ions only, 
+Key findings:
+    peptide length 7–30,
+    single-charge b/y ions only,
     min intensity ~16 (no zeros → unmatched = 0)
     duplicate keys with conflicting charges (must drop)
