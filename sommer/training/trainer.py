@@ -131,6 +131,10 @@ class Trainer:
         self.log(f"{model_name} [{cfg.mode}] params={n_params:,} n_train={len(train):,} n_val={len(val):,} "
                  f"device={self.device}")
 
+        logged_runs = [r for r in tracking.load_records(self.run_log)
+                       if r.get("val_sa") is not None and r.get("history")]
+        best_run = max(logged_runs, key=lambda r: r["val_sa"], default=None)
+        best_run_history = {entry["epoch"]: entry["val_sa"] for entry in (best_run or {}).get("history", [])}
         history, best_sa, best_epoch, best_state, stale = [], -math.inf, 0, None, 0
         for epoch in range(1, cfg.epochs + 1):
             t0 = time.time()
@@ -150,7 +154,9 @@ class Trainer:
                 best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
             else:
                 stale += 1
-            self.log(f"epoch {epoch:3d}  train_loss={train_loss:.4f}  val SA={val_sa:.4f}  "
+            best_epoch_sa = best_run_history.get(epoch)
+            best_delta = f" {(val_sa - best_epoch_sa) * 100:+.2f}%" if best_epoch_sa is not None else ""
+            self.log(f"epoch {epoch:3d}  train_loss={train_loss:.4f}  val SA={val_sa:.4f}{best_delta}  "
                      f"lr={history[-1]['lr']:.1e}  {history[-1]['seconds']:.0f}s{'  *' if improved else ''}")
             if stale >= cfg.patience:
                 self.log(f"early stop: no val SA improvement for {cfg.patience} epochs")
@@ -209,4 +215,3 @@ def run_experiments(experiments: dict[str, dict], data: dict[str, SpectrumSet], 
         records.append(result.record)
         del result
     return records
-
