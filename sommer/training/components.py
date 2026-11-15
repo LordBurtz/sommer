@@ -12,6 +12,46 @@ import torch
 
 from sommer.training.config import TrainConfig
 
+def masked_combined_huber_loss_spectral_angle(
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+        alpha: float = 0.5,
+        eps: float = 1e-8,
+) -> torch.Tensor:
+    """
+    Combines both huber loss and spectral angle benefit from both:
+    Spectral angle: shape of our prediction / angle
+    Huber loss: absolute magnitude
+
+    TODO FK: find better one
+    alpha: float = 0.5 defines how important huber is vs SA
+    """
+
+    loss_sa = masked_spectral_angle_loss(pred, target, mask, eps)
+    loss_huber = masked_huber_loss(pred, target, mask)
+
+    return (alpha * loss_huber) + (1 - alpha) * loss_sa
+
+
+def masked_huber_loss(
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+        delta: float = 1.0
+) -> torch.Tensor:
+    """
+    Combines benefits of MSE and MAE
+    MSE: smooth gradient near local minimum -> precise learning
+    MAE: Large misses are not punished over proportionally
+
+    delta: float = 1.0 idkk how to set it yet
+    """
+    huber = torch.nn.HuberLoss(delta=delta, reduction='none')
+    loss_matrix = huber(pred, target)
+
+    masked_loss = loss_matrix * mask
+    return masked_loss.sum() / (mask.sum() + 1e-8)
 
 def masked_spectral_angle_loss(pred: torch.Tensor, target: torch.Tensor, mask: torch.Tensor,
                                eps: float = 1e-8) -> torch.Tensor:
@@ -31,6 +71,7 @@ def masked_mse_loss(pred: torch.Tensor, target: torch.Tensor, mask: torch.Tensor
 LOSSES: dict[str, Callable[..., torch.Tensor]] = {
     "masked_spectral_angle": masked_spectral_angle_loss,
     "masked_mse": masked_mse_loss,
+    "masked_huber_spectral_loss": masked_combined_huber_loss_spectral_angle,
 }
 
 OPTIMIZERS: dict[str, Callable[..., torch.optim.Optimizer]] = {
