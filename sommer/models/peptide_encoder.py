@@ -51,13 +51,16 @@ class PeptideEncoder(FragmentModel):
 
         base_residue = torch.where(tokens == MOD_C, C, torch.where(tokens == MOD_M, M, tokens))
         is_modified = ((tokens == MOD_C) | (tokens == MOD_M)).long()
+
+        charge_features = self.precursor_charge_embedding(self.charge_index(precursor_charge))
+
         residue_features = self.amino_acid_embedding(base_residue) + self.modification_embedding(is_modified)
         residue_features = self.positional_encoding(residue_features)
+        residue_features = residue_features + charge_features.unsqueeze(1)
         residue_features = self.sequence_transformer(residue_features, padding_mask=~residue_mask)
 
         global_features = self.global_peptide_projection(
             masked_mean_pooling(residue_features, residue_mask)
-            + self.precursor_charge_embedding(self.charge_index(precursor_charge))
         )
         cleavage_features = self.cleavage_site_projection(torch.cat([
             residue_features[:, :-1],
