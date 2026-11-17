@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from sommer.constants import CHARGES, PAD_IDX, TOKEN_TO_IDX
 from sommer.models.base import FragmentModel
-from sommer.models.layers import PositionalEncoding, TransformerEncoder, masked_mean_pooling, place_bonds
+from sommer.models.layers import PositionalEncoding, TransformerEncoder, masked_mean_pooling, place_bonds, ABABTransformerEncoder
 from sommer.models.registry import register_model
 
 MOD_C, MOD_M = TOKEN_TO_IDX["C[UNIMOD:4]"], TOKEN_TO_IDX["M[UNIMOD:35]"]
@@ -27,7 +27,7 @@ class PeptideEncoder(FragmentModel):
         self.modification_embedding = nn.Embedding(mod_vocab_size, hidden_dimensions)
         self.precursor_charge_embedding = nn.Embedding(precursor_vocab_size, hidden_dimensions)
         self.positional_encoding = PositionalEncoding(hidden_dimensions)
-        self.sequence_transformer = TransformerEncoder(
+        self.sequence_transformer = ABABTransformerEncoder(
             hidden_dimension=hidden_dimensions,
             layer_count=transformer_layers,
             attention_head_count=attention_heads,

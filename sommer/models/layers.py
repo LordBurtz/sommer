@@ -66,3 +66,68 @@ def place_bonds(bond_out: torch.Tensor, n_res: torch.Tensor) -> torch.Tensor:
     b = bond_out[..., 0]
     y = bond_out[..., 1].gather(1, (n_res - 1 - n).clamp(min=0))
     return (torch.stack([b, y], dim=-1) * valid.unsqueeze(-1)).flatten(1)
+
+class ABABTransformerEncoder(nn.Module):
+    def __init__(
+            self,
+            hidden_dimension: int,
+            layer_count: int,
+            attention_head_count: int,
+            bidirectional: bool = True,
+            dropout: float = 0.1,
+    ):
+        super().__init__()
+
+        self.bidirectional = bidirectional
+        self.layer_count = layer_count
+
+        def lambda_make_layer() -> nn.TransformerEncoderLayer:
+            return nn.TransformerEncoderLayer(
+                d_model=hidden_dimension,
+                nhead=attention_head_count,
+                dim_feedforward=4 * hidden_dimension,
+                dropout=dropout,
+                activation="gelu",
+                batch_first=True,
+                norm_first=True,
+            )
+
+        self.layers = nn.ModuleList([
+                lambda_make_layer(),
+                lambda_make_layer(),
+        ])
+
+        self.iteration_embedding = nn.Embedding(
+            layer_count,
+            hidden_dimension,
+        )
+
+        self.final_norm = nn.LayerNorm(hidden_dimension)
+
+
+    def forward(
+            self,
+            residue_features: torch.Tensor,
+            padding_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        attention_mask = None
+
+        if not self.bidirectional:
+            raise Exception("only bidirect for now lol")
+
+        x = residue_features
+
+        for i in range(self.layer_count):
+            layer = self.layers[i % 2]
+
+            depth_embedding = self.iteration_embedding.weight[i]
+
+            x = x + depth_embedding.view(1, 1, -1)
+
+            x = layer(
+                x,
+                src_mask=attention_mask,
+                src_key_padding_mask=padding_mask
+            )
+
+        return self.final_norm(x)
